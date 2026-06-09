@@ -26,7 +26,7 @@
 
 1. [Releases](https://github.com/cheonmux/poe2tradesearch/releases)에서 최신 버전 다운로드
 2. 압축 해제 후 `Poe2TradeSearch.exe` 실행
-3. **.NET Framework 4.8** 필요 ([다운로드](https://dotnet.microsoft.com/download/dotnet-framework/net48))
+3. **Windows 10/11** 기본 내장 (.NET Framework 4.8)
 
 ---
 
