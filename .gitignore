@@ -6,3 +6,6 @@ obj/
 .vs/
 packages/
 *.log
+*.py
+CLAUDE.md
+PORTING_LOG.md
