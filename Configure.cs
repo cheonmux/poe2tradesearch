@@ -16,7 +16,7 @@ namespace Poe2TradeSearch
         internal static string[] ExchangeUrl = { "https://poe.game.daum.net/trade2/exchange/poe2/", "https://www.pathofexile.com/trade2/exchange/poe2/" };
         internal static string[] ExchangeApi = { "https://poe.game.daum.net/api/trade2/exchange/poe2/", "https://www.pathofexile.com/api/trade2/exchange/poe2/" };
 
-        internal static string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36";
+        internal static string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
 
         internal static byte ServerLang = 0;
         internal static string ServerType = "";

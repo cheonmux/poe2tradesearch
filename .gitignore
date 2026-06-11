@@ -9,3 +9,7 @@ packages/
 *.py
 CLAUDE.md
 PORTING_LOG.md
+
+# 배포 산출물
+PoeTradeSearch-master.zip
+*.zip

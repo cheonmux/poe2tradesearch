@@ -107,10 +107,7 @@ namespace Poe2TradeSearch
             [DataMember(Name = "auto_select_bytype")]
             internal string AutoSelectByType = "";
 
-            [DataMember(Name = "ctrl_wheel")]
-            internal bool CtrlWheel = false;
-
-            [DataMember(Name = "check_updates")]
+[DataMember(Name = "check_updates")]
             internal bool CheckUpdates = false;
         }
 
@@ -439,23 +436,20 @@ namespace Poe2TradeSearch
         }
 
         [DataContract]
-        internal class q_Socket_filters_filters
+        internal class q_Equipment_filters_filters
         {
-            [DataMember(Name = "sockets")]
-            internal q_Min_And_Max Sockets = new q_Min_And_Max();
-
-            [DataMember(Name = "links")]
-            internal q_Min_And_Max Links = new q_Min_And_Max();
+            [DataMember(Name = "rune_sockets")]
+            internal q_Min_And_Max RuneSockets = new q_Min_And_Max();
         }
 
         [DataContract]
-        internal class q_Socket_filters
+        internal class q_Equipment_filters
         {
             [DataMember(Name = "disabled")]
             internal bool Disabled = false;
 
             [DataMember(Name = "filters")]
-            internal q_Socket_filters_filters Filters = new q_Socket_filters_filters();
+            internal q_Equipment_filters_filters Filters = new q_Equipment_filters_filters();
         }
 
         [DataContract]
@@ -527,8 +521,8 @@ namespace Poe2TradeSearch
             [DataMember(Name = "type_filters", EmitDefaultValue = false)]
             internal q_Type_filters Type = new q_Type_filters();
 
-            [DataMember(Name = "socket_filters", EmitDefaultValue = false)]
-            internal q_Socket_filters Socket = null;
+            [DataMember(Name = "equipment_filters", EmitDefaultValue = false)]
+            internal q_Equipment_filters Equipment = null;
 
             [DataMember(Name = "map_filters", EmitDefaultValue = false)]
             internal q_Map_filters Map = null;
@@ -612,6 +606,41 @@ namespace Poe2TradeSearch
             [DataMember(Name = "sort")]
             internal q_Sort Sort = new q_Sort();
         }
+    }
+
+    // poe.ninja API 응답 모델
+    [DataContract]
+    internal class NinjaOverviewData
+    {
+        [DataMember(Name = "lines")]
+        internal NinjaLine[] Lines = null;
+
+        [DataMember(Name = "core")]
+        internal NinjaCore Core = null;
+    }
+
+    [DataContract]
+    internal class NinjaCore
+    {
+        [DataMember(Name = "rates")]
+        internal NinjaRates Rates = null;
+    }
+
+    [DataContract]
+    internal class NinjaRates
+    {
+        [DataMember(Name = "exalted")]
+        internal double Exalted = 1.0;
+    }
+
+    [DataContract]
+    internal class NinjaLine
+    {
+        [DataMember(Name = "id")]
+        internal string Id = null;
+
+        [DataMember(Name = "primaryValue")]
+        internal double PrimaryValue = 0.0;
     }
 
     public class FilterEntrie

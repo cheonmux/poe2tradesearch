@@ -18,10 +18,10 @@ namespace Poe2TradeSearch
     {
         private static IntPtr mMainHwnd;
         private IntPtr mNextClipBoardViewerHWnd = IntPtr.Zero;
-        public static DateTime mMouseHookCallbackTime;
-
         private static bool mInstalledHotKey = false;
         public static bool mPausedHotKey = false;
+        private Thread mGamePadThread;
+        private bool mGamePadThreadRunning = false;
 
         private bool mHotkeyProcBlock = false;
         private bool mClipboardBlock = false;
@@ -32,6 +32,10 @@ namespace Poe2TradeSearch
         public WinMain()
         {
             InitializeComponent();
+
+            // 거래소/ninja API는 TLS 1.2+ 요구. .NET 4.6 기본값은 구버전 TLS를 포함할 수 있어 명시.
+            System.Net.ServicePointManager.SecurityProtocol =
+                System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11;
 
             Clipboard.Clear();
             mAdministrator = IsAdministrator();
@@ -101,6 +105,9 @@ namespace Poe2TradeSearch
             this.Title += " - " + RS.ServerType;
             this.Visibility = Visibility.Hidden;
 
+            // poe.ninja 시세 백그라운드 프리로드
+            System.Threading.Tasks.Task.Run(() => FetchNinjaPrices());
+
             /////////////////
             mMainHwnd = new WindowInteropHelper(this).Handle;
             HwndSource source = HwndSource.FromHwnd(mMainHwnd);
@@ -124,12 +131,7 @@ namespace Poe2TradeSearch
                 //EventHook.EventAction += new EventHandler(WinEvent);
                 //EventHook.Start();
 
-                if (mConfigData.Options.CtrlWheel)
-                {
-                    mMouseHookCallbackTime = Convert.ToDateTime(DateTime.Now);
-                    MouseHook.MouseAction += new EventHandler(MouseEvent);
-                    MouseHook.Start();
-                }
+
 
                 DispatcherTimer timer = new DispatcherTimer();
                 timer.Interval = TimeSpan.FromMilliseconds(1000);
@@ -140,6 +142,14 @@ namespace Poe2TradeSearch
             if (!mDisableClip)
             {
                 mNextClipBoardViewerHWnd = Native.SetClipboardViewer(mMainHwnd);
+            }
+
+            if (GamePad.IsConnected())
+            {
+                mGamePadThreadRunning = true;
+                mGamePadThread = new Thread(GamePadPollingLoop);
+                mGamePadThread.IsBackground = true;
+                mGamePadThread.Start();
             }
         }
 
@@ -185,7 +195,8 @@ namespace Poe2TradeSearch
             {
                 exchange = new string[2];
 
-                ParserDictionary exchange_item1 = GetExchangeItem(0, mItemBaseName.TypeKR);
+                ParserDictionary exchange_item1 = (!string.IsNullOrEmpty(mItemBaseName.NameKR) ? GetExchangeItem(0, mItemBaseName.NameKR) : null)
+                                                  ?? GetExchangeItem(0, mItemBaseName.TypeKR);
                 ParserDictionary exchange_item2 = GetExchangeItem(0, (string)cbOrbs.SelectedValue);
 
                 if (exchange_item1 == null || exchange_item2 == null)
@@ -258,7 +269,8 @@ namespace Poe2TradeSearch
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
-            Close();
+            // "최소화" 버튼: 트레이로 숨김 (완전 종료는 창 오른쪽 위 X 버튼에서만).
+            Hide();
         }
 
         private void cbAiiCheck_Checked(object sender, RoutedEventArgs e)
@@ -307,9 +319,17 @@ namespace Poe2TradeSearch
 
             if (bdExchange.Visibility == Visibility.Visible && cbOrbs.SelectedIndex >= 0)
             {
+                return; // 화폐 시세는 ninja 캐시에서 자동 표시, 클릭 새로고침 불필요
                 exchange = new string[2];
 
-                ParserDictionary exchange_item1 = GetExchangeItem(0, mItemBaseName.TypeKR);
+                if (mItemBaseName == null)
+                {
+                    tkPriceInfo.Text = "아이템을 먼저 복사해주세요.";
+                    return;
+                }
+
+                ParserDictionary exchange_item1 = (!string.IsNullOrEmpty(mItemBaseName.NameKR) ? GetExchangeItem(0, mItemBaseName.NameKR) : null)
+                                                  ?? GetExchangeItem(0, mItemBaseName.TypeKR);
                 ParserDictionary exchange_item2 = GetExchangeItem(0, (string)cbOrbs.SelectedValue);
 
                 if (exchange_item1 == null || exchange_item2 == null)
@@ -438,9 +458,12 @@ namespace Poe2TradeSearch
 
         private void ApplyShortcutSetting(bool useAutoClip, int keycode, bool useCtrl)
         {
-            // 핫키 해제
-            if (mAdministrator && mInstalledHotKey)
+            // 핫키 해제 (재등록을 위해 강제 해제)
+            if (mAdministrator)
+            {
+                mInstalledHotKey = true;
                 RemoveRegisterHotKey();
+            }
 
             // {Run} 항목 업데이트
             if (mConfigData.Shortcuts != null)
@@ -499,6 +522,16 @@ namespace Poe2TradeSearch
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            // 오른쪽 위 X 버튼: 종료 확인 후 완전 종료. (최소화 버튼은 Hide()만 함)
+            MessageBoxResult result = MessageBox.Show(this, "프로그램을 종료하시겠습니까?", "종료 확인",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (result == MessageBoxResult.Yes)
+            {
+                e.Cancel = false;
+                Application.Current.Shutdown();
+                return;
+            }
+
             e.Cancel = true;
             Keyboard.ClearFocus();
             this.Visibility = Visibility.Hidden;
@@ -509,6 +542,8 @@ namespace Poe2TradeSearch
 
         private void Window_Closed(object sender, EventArgs e)
         {
+            mGamePadThreadRunning = false;
+
             if (mNextClipBoardViewerHWnd != IntPtr.Zero)
                 Native.ChangeClipboardChain(mMainHwnd, mNextClipBoardViewerHWnd);
 
@@ -517,8 +552,57 @@ namespace Poe2TradeSearch
                 if (mInstalledHotKey)
                     RemoveRegisterHotKey();
 
-                if (mConfigData.Options.CtrlWheel)
-                    MouseHook.Stop();
+            }
+        }
+
+        private bool mGamePadLTAprevPressed = false;
+
+        private void GamePadPollingLoop()
+        {
+            while (mGamePadThreadRunning)
+            {
+                try
+                {
+                    bool pressed = GamePad.IsLTplusAPressed();
+
+                    if (pressed && !mGamePadLTAprevPressed)
+                    {
+                        mGamePadLTAprevPressed = true;
+
+                        if (!mPausedHotKey && Native.GetForegroundWindow().Equals(Native.FindWindow(RS.PoeClass, RS.PoeCaption)))
+                        {
+                            // 1) UI 스레드에서 Ctrl+C 전송만 (블로킹 없음)
+                            Dispatcher.Invoke(() =>
+                            {
+                                mClipboardBlock = true;
+                                System.Windows.Forms.SendKeys.SendWait("^{c}");
+                            });
+
+                            // 2) 클립보드가 채워질 때까지 대기는 백그라운드 스레드에서 (UI 안 멈춤)
+                            Thread.Sleep(300);
+
+                            // 3) UI 스레드에서 클립보드 읽기 + 파싱
+                            Dispatcher.Invoke(() =>
+                            {
+                                try
+                                {
+                                    if (System.Windows.Clipboard.ContainsText(System.Windows.TextDataFormat.UnicodeText) ||
+                                        System.Windows.Clipboard.ContainsText(System.Windows.TextDataFormat.Text))
+                                        ItemTextParser(GetClipText(System.Windows.Clipboard.ContainsText(System.Windows.TextDataFormat.UnicodeText)));
+                                }
+                                catch { }
+                                mClipboardBlock = false;
+                            });
+                        }
+                    }
+                    else if (!pressed)
+                    {
+                        mGamePadLTAprevPressed = false;
+                    }
+                }
+                catch { }
+
+                Thread.Sleep(100);
             }
         }
     }

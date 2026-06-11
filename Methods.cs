@@ -103,7 +103,7 @@ namespace Poe2TradeSearch
         private void SetSearchButtonText(bool is_kor)
         {
             bool isExchange = bdExchange.Visibility == Visibility.Visible && (cbOrbs.SelectedIndex > 0 || cbSplinters.SelectedIndex > 0);
-            btnSearch.Content = "거래소에서 " + (isExchange ? "대량 " : "") + "찾기 (한국)";
+            btnSearch.Content = "거래소에서 " + (isExchange ? "대량 " : "") + "찾기";
         }
 
         private void setDPS(string physical, string elemental, string chaos, string quality, string perSecond, double phyDmgIncr, double speedIncr)
@@ -176,12 +176,27 @@ namespace Poe2TradeSearch
                         item_name = "";
                     }
 
-                    ParserDictionary category = Array.Find(PS.Category.Entries, x => x.Text[z] == item_type)
-                                            ?? Array.Find(PS.Category.Entries, x => x.Text[z] == item_name);
-                    string[] cate_ids = category != null ? category.Id.Split('.') : new string[] { "" };
-
                     ParserDictionary rarity = Array.Find(PS.Rarity.Entries, x => x.Text[z] == item_rarity);
                     string rarity_id = rarity != null ? rarity.Id : "";
+
+                    ParserDictionary category = Array.Find(PS.Category.Entries, x => x.Text[z] == item_type)
+                                            ?? Array.Find(PS.Category.Entries, x => x.Text[z] == item_name);
+
+                    // 마법(magic) 아이템은 이름이 "접두 + 베이스 + 접미"라 풀네임으론 category 매칭 실패.
+                    // 접미(" - "/" of ")를 떼고 접두 토큰을 앞에서 하나씩 벗기며 베이스로 재매칭한다.
+                    if (category == null && rarity_id == "magic")
+                    {
+                        string baseName = item_type.Split(new string[] { z == 1 ? " of " : " - " }, StringSplitOptions.None)[0].Trim();
+                        string[] toks = baseName.Split(' ');
+                        for (int i = 0; i < toks.Length && category == null; i++)
+                        {
+                            string cand = string.Join(" ", toks, i, toks.Length - i);
+                            category = Array.Find(PS.Category.Entries, x => x.Text[z] == cand);
+                        }
+                    }
+
+                    string[] cate_ids = category != null ? category.Id.Split('.') : new string[] { "" };
+
                     item_rarity = rarity != null ? rarity.Text[0] : item_rarity;
 
                     int k = 0, baki = 0;
@@ -209,8 +224,8 @@ namespace Poe2TradeSearch
                         // POE2: 같은 섹션에 메타정보+옵션이 함께 있을 수 있으므로 먼저 전체 스캔
                         foreach (string line in asOpt)
                         {
-                            if (line.Trim().StartsWith("{ 접두어")) prefixCount++;
-                            else if (line.Trim().StartsWith("{ 접미어")) suffixCount++;
+                            if (System.Text.RegularExpressions.Regex.IsMatch(line.Trim(), @"^\{.*접두어")) prefixCount++;
+                            else if (System.Text.RegularExpressions.Regex.IsMatch(line.Trim(), @"^\{.*접미어")) suffixCount++;
                             if (line.Trim() == "" || line.Trim().StartsWith("{")) continue;
                             if (line.IndexOf("(rune)") > -1) continue;
                             string[] preTmp = Regex.Replace(line, @" \([\w\s]+\)\: ", ": ").Split(':');
@@ -506,6 +521,9 @@ namespace Poe2TradeSearch
                     bool is_currency = rarity_id == "currency";
                     bool is_divinationCard = rarity_id == "card";
                     bool is_gem = rarity_id == "gem";
+                    // 보조 젬(POE2 신규): "아이템 종류: 보조 젬". trade에 안 잡히고 poe.ninja(LineageSupportGems)에 시세 존재.
+                    // → 이름(item_name)으로 ninja/static 매칭되면 화폐처럼 ninja 단일 시세 표시.
+                    bool is_supportgem = is_gem && item_category == "보조 젬" && GetExchangeItem(z, item_name) != null;
                     bool is_vaal_gem = is_gem && lItemOption[PS.Vaal.Text[z] + " " + item_type] == "_TRUE_";
                     bool is_detail = is_gem || is_currency || is_divinationCard || is_prophecy;
                     bool is_unIdentify = lItemOption[PS.Unidentified.Text[z]] == "_TRUE_";
@@ -518,7 +536,8 @@ namespace Poe2TradeSearch
                         if (sckcnt == 0) sckcnt = socket.Trim().Split(new char[]{' '}, StringSplitOptions.RemoveEmptyEntries).Length;
                         tbSocketMin.Text = sckcnt.ToString();
                         tbLinksMin.Text = "";
-                        ckSocket.IsChecked = sckcnt > 0;
+                        // 홈은 자동 체크하지 않음 (개수만 칸에 채우고, 검색 포함은 사용자가 수동 선택).
+                        ckSocket.IsChecked = false;
                     }
 
                     int item_idx = -1;
@@ -724,8 +743,9 @@ namespace Poe2TradeSearch
                         cbRarity.SelectedIndex = 0;
                     }
 
-                    bool Is_exchangeCurrency = cate_ids[0] == "currency" && GetExchangeItem(z, item_type) != null;
-                    bdExchange.Visibility = !is_gem && (is_detail || Is_exchangeCurrency) ? Visibility.Visible : Visibility.Hidden;
+                    bool Is_exchangeCurrency = (cate_ids[0] == "currency" && GetExchangeItem(z, item_type) != null) || is_supportgem;
+                    // 보조 젬도 ninja 시세 대상 → exchange UI 표시/활성 (일반 젬은 제외)
+                    bdExchange.Visibility = (!is_gem || is_supportgem) && (is_detail || Is_exchangeCurrency) ? Visibility.Visible : Visibility.Hidden;
                     bdExchange.IsEnabled = Is_exchangeCurrency;
 
                     if (bdExchange.Visibility == Visibility.Hidden)
@@ -805,9 +825,28 @@ namespace Poe2TradeSearch
 
                         mLockUpdatePrice = false;
 
-                        if (mConfigData.Options.AutoSearchDelay > 0 && mAutoSearchTimerCount < 1)
+                        // 새 아이템 Ctrl+C → 이전 자동검색 타이머를 멈추고 무조건 새로 검색한다.
+                        // (rate limit은 UpdatePrice 내 WaitForRateLimit가 보내기 전에 강제하므로 안전)
+                        mAutoSearchTimer.Stop();
+                        mAutoSearchTimerCount = 0;
+
+                        if (mConfigData.Options.AutoSearchDelay > 0)
                         {
-                            UpdatePriceThreadWorker(GetItemOptions(), null);
+                            if (bdExchange.Visibility == Visibility.Visible && cbOrbs.SelectedIndex >= 0 && mItemBaseName != null)
+                            {
+                                // 보조 젬은 이름(NameKR)으로 ninja 매칭, 일반 화폐는 TypeKR. NameKR 우선 폴백.
+                                ParserDictionary ei1 = (!string.IsNullOrEmpty(mItemBaseName.NameKR) ? GetExchangeItem(0, mItemBaseName.NameKR) : null)
+                                                       ?? GetExchangeItem(0, mItemBaseName.TypeKR);
+                                ParserDictionary ei2 = GetExchangeItem(0, (string)cbOrbs.SelectedValue);
+                                if (ei1 != null && ei2 != null)
+                                    UpdatePriceThreadWorker(null, new string[] { ei1.Id, ei2.Id });
+                                else
+                                    UpdatePriceThreadWorker(GetItemOptions(), null);
+                            }
+                            else
+                            {
+                                UpdatePriceThreadWorker(GetItemOptions(), null);
+                            }
                         }
                         else
                         {
@@ -833,7 +872,7 @@ namespace Poe2TradeSearch
                     System.IO.File.AppendAllText(logPath, string.Format("[PARSER] {0}: {1}\r\n{2}\r\n\r\n", cur.GetType().Name, cur.Message, cur.StackTrace));
                     cur = cur.InnerException;
                 }
-                ForegroundMessage(String.Format("{0} 에러:  {1}\r\n\r\n{2}\r\n\r\n", ex.Source, ex.Message, ex.StackTrace), "에러", MessageBoxButton.OK, MessageBoxImage.Error);
+                ForegroundMessage(String.Format("{0} 에러:  {1}\r\n\r\n", ex.Source, ex.Message), "에러", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -921,6 +960,7 @@ namespace Poe2TradeSearch
 
                 jsonData.Sort.Price = "asc";
 
+                if (mItemBaseName == null || mItemBaseName.Ids == null) return "";
                 byte lang_type = mItemBaseName.LangType;
                 string Inherit = mItemBaseName.Ids.Length > 0 ? mItemBaseName.Ids[0] : "any";
 
@@ -945,14 +985,12 @@ namespace Poe2TradeSearch
                     JQ.Filters.Trade.Filters.Price.Min = itemOptions.PriceMin;
                 }
 
-                // socket_filters: 소켓 체크시에만 포함
+                // equipment_filters: 홈(rune_sockets) 체크시에만 포함
                 if (itemOptions.ChkSocket == true)
                 {
-                    JQ.Filters.Socket = new q_Socket_filters();
-                    JQ.Filters.Socket.Filters.Links.Min = itemOptions.LinkMin;
-                    JQ.Filters.Socket.Filters.Links.Max = itemOptions.LinkMax;
-                    JQ.Filters.Socket.Filters.Sockets.Min = itemOptions.SocketMin;
-                    JQ.Filters.Socket.Filters.Sockets.Max = itemOptions.SocketMax;
+                    JQ.Filters.Equipment = new q_Equipment_filters();
+                    JQ.Filters.Equipment.Filters.RuneSockets.Min = itemOptions.SocketMin;
+                    JQ.Filters.Equipment.Filters.RuneSockets.Max = itemOptions.SocketMax;
                 }
 
                 // misc_filters: 품질/부패/레벨 체크시에만 포함
@@ -1009,9 +1047,6 @@ namespace Poe2TradeSearch
 
                             if (filterResult == null)
                             {
-                                string logPath2 = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                                logPath2 = logPath2.Remove(logPath2.Length - 4) + ".log";
-                                System.IO.File.AppendAllText(logPath2, string.Format("[FILTER_NULL] type={0} type_name={1} id={2}\r\n", type, type_name, id));
                                 continue;
                             }
 
@@ -1029,10 +1064,6 @@ namespace Poe2TradeSearch
                             }
                             else
                             {
-                                string logPath3 = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                                logPath3 = logPath3.Remove(logPath3.Length - 4) + ".log";
-                                System.IO.File.AppendAllText(logPath3, string.Format("[FILTER_MISS] type={0} type_name={1} id={2} input={3}\r\n", type, type_name, id, input));
-
                                 error_filter = true;
                                 itemOptions.itemfilters[i].isNull = true;
 
@@ -1126,111 +1157,68 @@ namespace Poe2TradeSearch
                     {
                         json_entity = entity[0];
                         url_string = RS.TradeApi[RS.ServerLang] + RS.ServerType;
-                    }
-                    else
-                    {
-                        url_string = RS.ExchangeApi[RS.ServerLang] + RS.ServerType;
-                        json_entity = "{\"exchange\":{\"status\":{\"option\":\"online\"},\"have\":[\"" + entity[0] + "\"],\"want\":[\"" + entity[1] + "\"]}}";
-                    }
-                    string request_result = SendHTTP(json_entity, url_string, mConfigData.Options.ServerTimeout);
-                    msg = "거래소 접속이 원활하지 않습니다";
 
-                    if (request_result != null)
+                        // search 보내기 전 강제 throttle: 한도 근접/차단이면 안전해질 때까지 대기.
+                        WaitForRateLimit("trade-search-request-limit", ct);
+                    }
+                    string request_result = entity.Length == 1 ? SendHTTP(json_entity, url_string, mConfigData.Options.ServerTimeout) : null;
+
+                    // ninja 화폐 시세 조회 (entity.Length > 1 = 화폐 교환 모드)
+                    if (entity.Length > 1)
                     {
-                        Dictionary<string, int> currencys = new Dictionary<string, int>();
+                        // 캐시가 없거나 30분 이상 지났으면 갱신
+                        if (mNinjaCache.Count == 0 || (DateTime.Now - mNinjaLastFetch).TotalMinutes > 30)
+                            FetchNinjaPrices();
+
+                        double haveVal = GetNinjaDivineValue(entity[0]);
+                        double wantVal = GetNinjaDivineValue(entity[1]);
+
+                        ParserDictionary haveItem = GetExchangeItem(entity[0]);
+                        ParserDictionary wantItem = GetExchangeItem(entity[1]);
+                        string haveName = haveItem != null ? haveItem.Text[0] : entity[0];
+                        string wantName = wantItem != null ? wantItem.Text[0] : entity[1];
+
+                        if (haveVal > 0 && wantVal > 0)
+                        {
+                            double ratio = haveVal / wantVal;
+                            string ratioStr = ratio >= 1
+                                ? Math.Round(ratio, 2).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                                : Math.Round(ratio, 4).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            double haveEx = haveVal * mNinjaExaltedRate;
+                            string exRounded = (haveEx >= 1 ? Math.Round(haveEx, 1) : Math.Round(haveEx, 2)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            if (haveVal >= 1)
+                            {
+                                // 신성 이상: 엑잘 + 신성 표시
+                                string divRounded = Math.Round(haveVal, 2).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                msg = "1 " + haveName + " ≈ " + exRounded + " 엑잘티드 오브 = " + divRounded + " 신성한 오브";
+                            }
+                            else
+                            {
+                                // 신성 미만: 엑잘만 표시
+                                msg = "1 " + haveName + " ≈ " + exRounded + " 엑잘티드 오브";
+                            }
+                        }
+                        else if (haveVal <= 0)
+                        {
+                            msg = haveName + " 시세 정보 없음";
+                        }
+
+                        cbPriceListTotal.Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)delegate ()
+                        {
+                            cbPriceListTotal.Text = "";
+                        });
+                    }
+                    else if (request_result == null)
+                    {
+                        msg = "거래소 접속이 원활하지 않습니다";
+                    }
+                    else if (request_result != null)
+                    {
                         int total = 0;
                         int resultCount = 0;
-
-                        if (entity.Length > 1)
+                        Dictionary<string, int> currencys = new Dictionary<string, int>();
+                        // 일반 trade API
                         {
-                            ExchangeResultData exMeta = Json.Deserialize<ExchangeResultData>(request_result);
-                            resultCount = exMeta.Total;
-
-                            // "listing":{ 블록을 깊이 추적으로 분리 후 각 블록에서 값 추출
-                            List<string> listingBlocks = ExtractListingBlocks(request_result);
-
-                            int shown = 0;
-                            foreach (string block in listingBlocks)
-                            {
-                                if (shown >= listCount * 10) break;
-                                ct.ThrowIfCancellationRequested();
-                                try
-                                {
-                                    Match mIdx = Regex.Match(block, @"""indexed""\s*:\s*""([^""]*)""");
-                                    Match mAcc = Regex.Match(block, @"""name""\s*:\s*""([^""]+)""");
-                                    Match mHave = Regex.Match(block, @"""exchange""\s*:\s*\{[^}]*""amount""\s*:\s*([0-9.]+)");
-                                    Match mWant = Regex.Match(block, @"""offers"".*?""item""\s*:\s*\{[^}]*""amount""\s*:\s*([0-9.]+)", RegexOptions.Singleline);
-                                    if (!mHave.Success || !mWant.Success) continue;
-
-                                    double haveAmt = double.Parse(mHave.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
-                                    double wantAmt = double.Parse(mWant.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
-                                    if (wantAmt <= 0 || haveAmt <= 0) continue;
-
-                                    string capturedIndexed = mIdx.Success ? mIdx.Groups[1].Value : "";
-                                    string capturedAccount = mAcc.Success ? mAcc.Groups[1].Value : "";
-                                    double capturedHave = haveAmt;
-                                    double capturedWant = wantAmt;
-
-                                    liPrice.Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)delegate ()
-                                    {
-                                        ParserDictionary haveItem = GetExchangeItem(entity[0]);
-                                        ParserDictionary wantItem = GetExchangeItem(entity[1]);
-                                        string haveName = haveItem != null ? haveItem.Text[0] : entity[0];
-                                        string wantName = wantItem != null ? wantItem.Text[0] : entity[1];
-                                        liPrice.Items.Add(String.Format("{0} {1} {2} → {3} {4} [{5}]",
-                                            GetLapsedTime(capturedIndexed).PadRight(8, ' '),
-                                            capturedHave, haveName, capturedWant, wantName, capturedAccount));
-                                    });
-
-                                    double ratio = capturedWant / capturedHave;
-                                    string key = Math.Round(ratio, 1) + " " + entity[1];
-                                    if (currencys.ContainsKey(key)) currencys[key]++;
-                                    else currencys.Add(key, 1);
-                                    total++;
-                                    shown++;
-                                }
-                                catch (Exception ex)
-                                {
-                                    string logPath = System.IO.Path.ChangeExtension(System.Reflection.Assembly.GetExecutingAssembly().Location, ".log");
-                                    System.IO.File.AppendAllText(logPath, string.Format("[EXCHANGE] {0}: {1}\r\n", ex.GetType().Name, ex.Message));
-                                }
-                            }
-
-                            if (currencys.Count > 0)
-                            {
-                                List<KeyValuePair<string, int>> myList = new List<KeyValuePair<string, int>>(currencys);
-                                myList.Sort((a, b) => {
-                                    double ra = double.Parse(a.Key.Split(' ')[0], System.Globalization.CultureInfo.InvariantCulture);
-                                    double rb = double.Parse(b.Key.Split(' ')[0], System.Globalization.CultureInfo.InvariantCulture);
-                                    return ra.CompareTo(rb);
-                                });
-                                string first = myList[0].Key;
-                                string last = myList[myList.Count - 1].Key;
-                                myList.Sort((a, b) => -1 * a.Value.CompareTo(b.Value));
-                                for (int i = 0; i < myList.Count; i++)
-                                {
-                                    if (i == 2) break;
-                                    if (myList[i].Value < 2) continue;
-                                    msg_2 += myList[i].Key + "[" + myList[i].Value + "], ";
-                                }
-                                ParserDictionary wantItemMsg = GetExchangeItem(entity[1]);
-                                string wantNameMsg = wantItemMsg != null ? wantItemMsg.Text[0] : entity[1];
-                                msg = first + " ~ " + last + " (" + wantNameMsg + "/have)";
-                                msg_2 = msg_2.TrimEnd(',', ' ');
-                                if (msg_2 == "") msg_2 = "가장 많은 수 없음";
-                            }
-
-                            cbPriceListTotal.Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)delegate ()
-                            {
-                                cbPriceListTotal.Text = total + "/" + resultCount + " 검색";
-                            });
-
-                            if (resultCount == 0 || currencys.Count == 0)
-                                msg = mLockUpdatePrice ? "해당 물품의 거래가 없습니다" : "검색 실패: 클릭하여 다시 시도해주세요";
-                        }
-                        else
-                        {
-                            // 일반 trade API
                             ResultData resultData = Json.Deserialize<ResultData>(request_result);
                             resultCount = resultData.Result != null ? resultData.Result.Length : 0;
 
@@ -1248,16 +1236,34 @@ namespace Poe2TradeSearch
                                     }
 
                                     string json_result = "";
-                                    string url = RS.FetchApi[RS.ServerLang] + string.Join(",", tmp) + "?query=" + resultData.ID;
+                                    string url = RS.FetchApi[RS.ServerLang] + string.Join(",", tmp) + "?query=" + Uri.EscapeDataString(resultData.ID);
+
+                                    // fetch 보내기 전 강제 throttle: 거래소가 알려준 한도/차단에 맞춰 대기.
+                                    WaitForRateLimit("trade-fetch-request-limit", ct);
+
                                     HttpWebRequest request = (HttpWebRequest)WebRequest.Create(new Uri(url));
                                     request.CookieContainer = new CookieContainer();
                                     request.UserAgent = RS.UserAgent;
                                     request.Timeout = mConfigData.Options.ServerTimeout * 1000;
 
-                                    using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
-                                    using (StreamReader streamReader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+                                    try
                                     {
-                                        json_result = streamReader.ReadToEnd();
+                                        using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                                        using (StreamReader streamReader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+                                        {
+                                            CaptureRateLimit(response);
+                                            json_result = streamReader.ReadToEnd();
+                                        }
+                                    }
+                                    catch (WebException wex)
+                                    {
+                                        // 429 등: 헤더로 차단시각 반영 후 이 페이지는 건너뛴다.
+                                        // using으로 응답을 닫아 연결 풀 고갈 방지.
+                                        using (HttpWebResponse resp = wex.Response as HttpWebResponse)
+                                        {
+                                            if (resp != null) CaptureRateLimit(resp);
+                                        }
+                                        json_result = "";
                                     }
 
                                     if (json_result != "")
@@ -1388,12 +1394,15 @@ namespace Poe2TradeSearch
                             token
                         );
 
-                        if (!token.IsCancellationRequested && mConfigData.Options.AutoSearchDelay > 0)
+                        if (!token.IsCancellationRequested && mConfigData.Options.AutoSearchDelay > 0 && exchange == null)
                         {
+                            // 거래소가 차단 중이면 다음 자동검색을 차단 해제 후로 미룬다(무의미한 대기-검색 반복 방지).
+                            int blockSec = (int)Math.Ceiling(RateLimit.BlockedSeconds("trade-search-request-limit"));
+                            int delay = Math.Max(mConfigData.Options.AutoSearchDelay, blockSec);
                             mAutoSearchTimer.Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)delegate ()
                             {
                                 mAutoSearchTimer.Stop();
-                                mAutoSearchTimerCount = mConfigData.Options.AutoSearchDelay;
+                                mAutoSearchTimerCount = delay;
                                 mAutoSearchTimer.Start();
                             });
                         }
@@ -1412,6 +1421,31 @@ namespace Poe2TradeSearch
                 });
                 priceThread.IsBackground = true;
                 priceThread.Start();
+            }
+        }
+
+        // 요청 보내기 전 거래소 rate limit에 맞춰 강제 대기.
+        // 백그라운드 검색 스레드에서 호출된다(UI 스레드 아님 → Sleep 허용).
+        // 대기 중에는 tkPriceInfo에 남은 초를 표시하고, 취소되면 즉시 중단한다.
+        private void WaitForRateLimit(string policy, System.Threading.CancellationToken ct)
+        {
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                double wait = RateLimit.SecondsToWait(policy);
+                if (wait <= 0) break;
+
+                // 너무 긴 대기는 1초 단위로 쪼개 카운트다운 표시 + 취소 반응.
+                int shown = (int)Math.Ceiling(wait);
+                string label = RateLimit.BlockedSeconds(policy) > 0
+                    ? "거래소 요청 제한 — " + shown + "초 후 재개"
+                    : "거래소 혼잡 — " + shown + "초 대기";
+                tkPriceInfo.Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)delegate ()
+                {
+                    tkPriceInfo.Text = label;
+                });
+
+                System.Threading.Thread.Sleep(wait > 1 ? 1000 : (int)(wait * 1000) + 50);
             }
         }
 
@@ -1493,6 +1527,19 @@ private ParserDictionary GetExchangeItem(string id)
             if (item == null)
                 item = Array.Find(mParserData.Exchange.Entries, x => x.Text[index] == text);
 
+            if (item == null && mStaticData[0]?.Result != null)
+            {
+                foreach (var group in mStaticData[0].Result)
+                {
+                    var entry = Array.Find(group.Entries, x => x.Text == text);
+                    if (entry != null)
+                    {
+                        item = new ParserDictionary { Id = entry.Id, Text = new string[] { entry.Text, entry.Text } };
+                        break;
+                    }
+                }
+            }
+
             return item;
         }
 
@@ -1503,41 +1550,11 @@ private ParserDictionary GetExchangeItem(string id)
                 if (!mInstalledHotKey)
                     InstallRegisterHotKey();
 
-                if (!mPausedHotKey && mConfigData.Options.CtrlWheel)
-                {
-                    TimeSpan dateDiff = Convert.ToDateTime(DateTime.Now) - mMouseHookCallbackTime;
-                    if (dateDiff.Ticks > 3000000000) // 5분간 마우스 움직임이 없으면 훜이 풀렸을 수 있어 다시...
-                    {
-                        mMouseHookCallbackTime = Convert.ToDateTime(DateTime.Now);
-                        MouseHook.Start();
-                    }
-                }
             }
             else
             {
                 if (mInstalledHotKey)
                     RemoveRegisterHotKey();
-            }
-        }
-
-        private void MouseEvent(object sender, EventArgs e)
-        {
-            if (!mHotkeyProcBlock)
-            {
-                mHotkeyProcBlock = true;
-
-                try
-                {
-                    int zDelta = ((MouseHook.MouseEventArgs)e).zDelta;
-                    if (zDelta != 0)
-                        System.Windows.Forms.SendKeys.SendWait(zDelta > 0 ? "{Left}" : "{Right}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-
-                mHotkeyProcBlock = false;
             }
         }
 
@@ -1617,15 +1634,11 @@ private ParserDictionary GetExchangeItem(string id)
 
                                 if (mPausedHotKey)
                                 {
-                                    if (mConfigData.Options.CtrlWheel) MouseHook.Stop();
-
                                     MessageBox.Show(Application.Current.MainWindow, "프로그램 동작을 일시 중지합니다." + '\n'
                                                     + "다시 시작하려면 일시 중지 단축키를 한번더 누르세요.", "POE 거래소 검색");
                                 }
                                 else
                                 {
-                                    if (mConfigData.Options.CtrlWheel) MouseHook.Start();
-
                                     MessageBox.Show(Application.Current.MainWindow, "프로그램 동작을 다시 시작합니다.", "POE 거래소 검색");
                                 }
 
