@@ -2,7 +2,7 @@
 [![License](https://img.shields.io/badge/license-GPL%203.0-blue.svg)](https://github.com/cheonmux/poe2tradesearch/blob/main/LICENSE)
 [![poe2tools](https://img.shields.io/badge/poe2tools.net-visit-orange.svg)](https://poe2tools.net/)
 
-# POE2 거래소 검색
+# POE2 거래소 검색 (Poe2TradeSearch)
 
 **Path of Exile 2** 한국 거래소 전용 아이템 시세 검색 프로그램입니다.
 
