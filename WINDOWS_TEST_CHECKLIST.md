@@ -40,6 +40,19 @@ msbuild Poe2TradeSearch.sln /p:Configuration=Release /p:Platform="Any CPU"
 
 ---
 
+## A'. 10차 세션 — rate limit 대기 UX (2건, Methods.cs `WaitForRateLimit`)
+
+### A'-1. 대기 문구 변경 (선제적 throttle)
+- [ ] 연타 검색으로 속도 조절 발생 시 `tkPriceInfo`에 **"요청 속도 조절 — N초 대기"** 표시 (기존 "거래소 혼잡" 아님).
+- [ ] 차단(BlockedSeconds>0) 시엔 기존대로 "거래소 요청 제한 — N초 후 재개".
+
+### A'-2. 대기 중 자동 숨김 보류 (`mHideTimer?.Stop()`)
+- [ ] 속도 조절/제한 **대기 중에는 시세 창이 안 닫힘** (대기가 HideDelay보다 길어도).
+- [ ] 대기 끝 → 결과 표시 → **그 시점부터** HideDelay초 뒤 정상 숨김.
+- [ ] 대기 없는 일반 검색은 기존대로 결과 후 HideDelay초 숨김 (회귀 없음).
+
+---
+
 ## B. 9차 세션 — 코드 점검 수정 (안정성)
 
 ### B-1. CancellationTokenSource Dispose (P-H1)
@@ -52,11 +65,12 @@ msbuild Poe2TradeSearch.sln /p:Configuration=Release /p:Platform="Any CPU"
 - [ ] 자동검색 카운트다운 표시 정상 (AutoSearchTimer — BeginInvoke 제거 후).
 - [ ] 장시간 연타 검색 시 검색 잠금 꼬임 없는지.
 
-### B-4. ★ API ID 검증 (S-H1) — 오탐 주의 ★
-- [ ] **일반 아이템 Ctrl+C → 검색 정상 동작** (검증이 정상 ID 막으면 검색 0 → 치명적. 반드시 확인).
-- [ ] 시세 결과의 매물들 정상 표시 (listing id 검증 후 `tmp` 채움 — 빈 결과 안 나는지).
-- [ ] 아이템명 클릭 → 브라우저로 거래소 열림 (Process.Start ID 검증).
-- [ ] 화폐/보조젬도 정상 (exchange 경로는 ID 검증 무관하나 회귀 확인).
+### B-4. ★ API ID 검증 (S-H1) — 오탐 주의 ★ — ✅ 통과 (2026-06-13)
+- [x] **일반 아이템 Ctrl+C → 검색 정상 동작** (오탐 0 확인).
+- [x] 시세 결과의 매물들 정상 표시 (무작위 매물 다수 정상).
+- [x] 아이템명 클릭 → 브라우저로 거래소 열림 (Process.Start 정상).
+- [x] 실제 listing ID = 영숫자 10자리(예 `2KX2kzVeUk`) → 인젝션 문자 없어 검증과 충돌 없음.
+- [ ] 화폐/보조젬도 정상 (exchange 경로 회귀 — 재확인 권장).
 
 ### B-5. catch{} → Debug.WriteLine (S-L8)
 - [ ] Release 빌드에 **로그 파일 안 생김** 확인 (Debug.WriteLine은 Release서 자동 제거).

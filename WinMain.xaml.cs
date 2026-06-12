@@ -36,7 +36,7 @@ namespace Poe2TradeSearch
 
             // 거래소/ninja API는 TLS 1.2+ 요구. .NET 4.6 기본값은 구버전 TLS를 포함할 수 있어 명시.
             System.Net.ServicePointManager.SecurityProtocol =
-                System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11;
+                System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls13;
 
             Clipboard.Clear();
             mAdministrator = IsAdministrator();

@@ -33,6 +33,7 @@
   - Methods.cs:1300~ — listing id 각각 검증 후 `tmp` 채움(`tmpLen`), 검색 id 검증해 query 조건부 생성, 유효 id 없으면 페이지 스킵.
   - **부수 개선**: 기존 `string.Join(",", tmp)`가 마지막 페이지 null 슬롯을 `,,,`로 넣던 버그도 `string.Join(",", tmp, 0, tmpLen)`로 해결.
 - **빌드 후 확인**: 정상 아이템 검색 여전히 동작하는지(오탐 없는지) + Process.Start 브라우저 열기 정상.
+- ✅ **실측 완료 (2026-06-13, Windows)**: 무작위 매물 다수 검색·브라우저 열기 정상, 오탐 0. **실제 listing ID = 영문 대소문자+숫자 10자리** (예: `2KX2kzVeUk`, `KlRjXm76s5`, `X3p9XQ8KfP`) — 인젝션 문자 없어 `IsSafeTradeId`와 충돌 없음 확인.
 
 #### S-H2. TLS 1.1 활성화
 - **위치**: WinMain.xaml.cs:37-38 (`Tls12 | Tls11`)

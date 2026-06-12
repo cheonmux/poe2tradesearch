@@ -1519,9 +1519,12 @@ namespace Poe2TradeSearch
                 int shown = (int)Math.Ceiling(wait);
                 string label = RateLimit.BlockedSeconds(policy) > 0
                     ? "거래소 요청 제한 — " + shown + "초 후 재개"
-                    : "거래소 혼잡 — " + shown + "초 대기";
+                    : "요청 속도 조절 — " + shown + "초 대기";
                 tkPriceInfo.Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)delegate ()
                 {
+                    // 속도 조절/제한 대기 중에는 자동 숨김 타이머를 멈춰 창이 닫히지 않게 한다.
+                    // 검색 완료 후 UpdatePrice finally의 RestartHideTimer가 HideDelay로 다시 시작한다.
+                    mHideTimer?.Stop();
                     tkPriceInfo.Text = label;
                 });
 
