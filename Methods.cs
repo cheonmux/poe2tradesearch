@@ -1788,6 +1788,11 @@ private ParserDictionary GetExchangeItem(string id)
 
                                     mClipboardBlock = false;
                                 }
+                                else
+                                {
+                                    // 채팅 명령어 직접 전송 (예: {ENTER}/hideout{ENTER})
+                                    System.Windows.Forms.SendKeys.SendWait(shortcut.Value);
+                                }
                             }
                         }
                     }

@@ -86,9 +86,6 @@ namespace Poe2TradeSearch
             [DataMember(Name = "search_before_day")]
             internal int SearchBeforeDay = 0;
 
-            [DataMember(Name = "search_by_type")]
-            internal bool SearchByType = false;
-
             [DataMember(Name = "auto_search_delay")]
             internal int AutoSearchDelay = 10;
 
@@ -111,8 +108,9 @@ namespace Poe2TradeSearch
             [DataMember(Name = "auto_select_bytype")]
             internal string AutoSelectByType = "";
 
-[DataMember(Name = "check_updates")]
-            internal bool CheckUpdates = false;
+            // 창 위치 저장 ("Left,Top")
+            [DataMember(Name = "position")]
+            internal string Position = null;
         }
 
         [DataContract(Name = "shortcuts")]

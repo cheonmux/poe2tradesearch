@@ -7,17 +7,18 @@
 			"search_price_min":0,
 			"search_price_count":20,
 			"auto_search_delay":30,
+			"hide_delay":5,
 			"auto_check_unique":true,
 			"auto_check_totalres":true,
 			"auto_select_pseudo":true,
 			"auto_select_corrupt":"no",
-			"auto_select_bytype":"",
-			"ctrl_wheel":false
+			"auto_select_bytype":""
 		},
 	"shortcuts":[
-			{"keycode":122,"value":"{Pause}","Detail":"일시 중지 (F11)"},
-			{"keycode":27,"value":"{Close}","Detail":"창 닫기 (ESC)"},
-			{"keycode":0,"ctrl":true,"value":"{Run}","Detail":"작동키 (Ctrl+C) 변경은 설정 파일 참고"}
+{"keycode":27,"value":"{Close}","Detail":"창 닫기 (ESC)"},
+			{"keycode":0,"ctrl":true,"value":"{Run}","Detail":"작동키 (Ctrl+C) 변경은 설정 파일 참고"},
+			{"keycode":113,"ctrl":false,"value":"{ENTER}/hideout{ENTER}","Detail":"은신처 이동 (F2)"},
+			{"keycode":116,"ctrl":false,"value":"{ENTER}/remaining{ENTER}","Detail":"남은 몬스터 수 (F5)"}
 		],
 
 	"version":[ "0.5.0", "0.5.0.0" ]
