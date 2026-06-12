@@ -13,3 +13,7 @@ PORTING_LOG.md
 # 배포 산출물
 PoeTradeSearch-master.zip
 *.zip
+
+# 에이전트 도구 캐시
+.codegraph/
+.claude/

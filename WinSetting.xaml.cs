@@ -8,16 +8,18 @@ namespace Poe2TradeSearch
         public bool UseAutoClip { get; private set; }
         public int CapturedKeycode { get; private set; }
         public bool UseCtrl { get; private set; }
+        public int HideDelay { get; private set; }
 
         private int _pendingKeycode = 0;
         private bool _capturing = false;
 
-        public WinSetting(bool useAutoClip, int currentKeycode, bool currentCtrl)
+        public WinSetting(bool useAutoClip, int currentKeycode, bool currentCtrl, int hideDelay)
         {
             InitializeComponent();
             UseAutoClip = useAutoClip;
             CapturedKeycode = currentKeycode;
             UseCtrl = currentCtrl;
+            HideDelay = hideDelay;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -32,6 +34,17 @@ namespace Poe2TradeSearch
                 ckCtrl.IsChecked = UseCtrl;
                 _pendingKeycode = CapturedKeycode;
                 UpdateCaptureButton(CapturedKeycode);
+            }
+
+            tbHideDelay.Text = HideDelay.ToString();
+        }
+
+        // 숫자만 입력 허용
+        private void tbHideDelay_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            foreach (char c in e.Text)
+            {
+                if (!char.IsDigit(c)) { e.Handled = true; return; }
             }
         }
 
@@ -120,6 +133,10 @@ namespace Poe2TradeSearch
                 CapturedKeycode = 0;
                 UseCtrl = false;
             }
+
+            // 자동 숨김 시간 (빈값/파싱 실패 시 기본 5초)
+            int hd;
+            HideDelay = int.TryParse(tbHideDelay.Text, out hd) ? hd : 5;
 
             DialogResult = true;
         }

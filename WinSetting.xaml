@@ -14,6 +14,9 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="12"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 섹션 제목 -->
@@ -39,8 +42,20 @@
         <!-- 구분선 -->
         <Separator Grid.Row="4" Margin="0,8,0,0"/>
 
+        <!-- 자동 숨김 섹션 -->
+        <TextBlock Grid.Row="5" Text="시세 창 자동 숨김" FontWeight="Bold" Margin="0,0,0,10"/>
+        <StackPanel Grid.Row="6" Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock Text="숨김까지 대기(초):" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox Name="tbHideDelay" Width="48" Height="22" VerticalContentAlignment="Center"
+                     PreviewTextInput="tbHideDelay_PreviewTextInput"/>
+            <TextBlock Text="(0 = 자동 숨김 끔)" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="Gray"/>
+        </StackPanel>
+
+        <!-- 구분선 -->
+        <Separator Grid.Row="7" Margin="0,8,0,0"/>
+
         <!-- 확인/취소 버튼 -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+        <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
             <Button Name="btnOk" Content="확인" Width="72" Height="26" Margin="0,0,8,0"
                     Click="btnOk_Click"/>
             <Button Name="btnCancel" Content="취소" Width="72" Height="26"

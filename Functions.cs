@@ -261,15 +261,35 @@ namespace Poe2TradeSearch
         {
             DataContractJsonSerializer dcsJson = new DataContractJsonSerializer(typeof(T));
             byte[] byteArray = Encoding.UTF8.GetBytes(strData);
-            MemoryStream mS = new MemoryStream(byteArray);
-            T tRet = dcsJson.ReadObject(mS) as T;
-            mS.Dispose();
-            return (tRet);
+            using (MemoryStream mS = new MemoryStream(byteArray))
+            {
+                return (dcsJson.ReadObject(mS) as T);
+            }
         }
     }
 
     public partial class WinMain : Window
     {
+        // 거래소 API가 반환한 id(검색 id / listing id)를 URL·Process.Start에 쓰기 전 검증.
+        // ID 형식을 좁히지 않고, URL 조작/명령 탈취에 쓰일 수 있는 위험 문자만 거부한다.
+        // (정상 ID는 영숫자+_-.= 등이라 통과 → 오탐 없음)
+        internal static bool IsSafeTradeId(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return false;
+            if (id.Length > 100) return false;
+            foreach (char c in id)
+            {
+                // 제어문자 거부
+                if (char.IsControl(c)) return false;
+                // URL 구조/스킴/공백 조작 문자 거부
+                if (c == '/' || c == '\\' || c == ':' || c == '?' || c == '#' ||
+                    c == '&' || c == '%' || c == ' ' || c == '"' || c == '\'' ||
+                    c == '<' || c == '>' || c == '@')
+                    return false;
+            }
+            return true;
+        }
+
         internal bool IsAdministrator()
         {
             var identity = WindowsIdentity.GetCurrent();
@@ -320,7 +340,7 @@ namespace Poe2TradeSearch
                             newCache[line.Id] = line.PrimaryValue;
                     }
                 }
-                catch { }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine("FetchNinjaPrices: " + ex.Message); }
             }
 
             if (newCache.Count > 0)
@@ -348,7 +368,7 @@ namespace Poe2TradeSearch
                     // 소수점은 항상 '.' (InvariantCulture). 한국 로케일에서 ',' 로 오해되는 것 방지.
                     def = double.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture);
                 }
-                catch { }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine("StrToDouble 파싱 실패('" + s + "'): " + ex.Message); }
             }
 
             return def;
@@ -367,7 +387,7 @@ namespace Poe2TradeSearch
                         dps += double.Parse(maidps[0].Trim()) + double.Parse(maidps[1].Trim());
                 }
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("DamageToDPS 파싱 실패: " + ex.Message); }
             return dps;
         }
 
@@ -543,7 +563,7 @@ namespace Poe2TradeSearch
                 }
             });
             ClipboardThread.SetApartmentState(ApartmentState.STA);
-            ClipboardThread.IsBackground = false;
+            ClipboardThread.IsBackground = true; // 앱 종료 방해 + 스레드 누적 방지
             ClipboardThread.Start();
         }
 

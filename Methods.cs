@@ -183,8 +183,9 @@ namespace Poe2TradeSearch
                                             ?? Array.Find(PS.Category.Entries, x => x.Text[z] == item_name);
 
                     // 마법(magic) 아이템은 이름이 "접두 + 베이스 + 접미"라 풀네임으론 category 매칭 실패.
+                    // 일반(normal)도 "특출난" 등 품질 접두가 붙어 풀네임 매칭 실패할 수 있음.
                     // 접미(" - "/" of ")를 떼고 접두 토큰을 앞에서 하나씩 벗기며 베이스로 재매칭한다.
-                    if (category == null && rarity_id == "magic")
+                    if (category == null && (rarity_id == "magic" || rarity_id == "normal"))
                     {
                         string baseName = item_type.Split(new string[] { z == 1 ? " of " : " - " }, StringSplitOptions.None)[0].Trim();
                         string[] toks = baseName.Split(' ');
@@ -247,6 +248,40 @@ namespace Poe2TradeSearch
                             if (asOpt[j].IndexOf("(rune)") > -1) continue;
 
                             string optLine = Regex.Replace(asOpt[j], @"\s*—\s*변경이 불가능한 값$", "");
+
+                            // 멀티라인 mod: 일부 stat은 거래소 데이터에 2~3줄로 저장됨.
+                            // 다음 줄을 하나씩 붙여가며, 데이터에 존재하는 가장 긴 조합을 찾으면 병합.
+                            {
+                                string accum = optLine.Trim();
+                                int consumed = 0; // 채택된, 추가 병합 줄 수 (가장 긴 일치)
+                                // 데이터 최대 3줄이지만 여유로 최대 4줄까지 붙여본다.
+                                // 중간 조합이 데이터에 없어도(3줄 stat은 앞2줄이 없음) 끝까지 시도.
+                                for (int nj = j + 1; nj < asOpt.Length && nj - j <= 4; nj++)
+                                {
+                                    string nextTrim = asOpt[nj].Trim();
+                                    if (nextTrim == "" || nextTrim.StartsWith("{")) break;
+                                    accum = accum + "\n" + Regex.Replace(asOpt[nj], @"\s*—\s*변경이 불가능한 값$", "").Trim();
+                                    string candNorm = Regex.Replace(accum, @"[+-]?[0-9]+\.[0-9]+|[+-]?[0-9]+", "#");
+                                    bool exists = false;
+                                    foreach (DataResult dr in mFilterData[z].Result)
+                                    {
+                                        if (Array.Exists(dr.Entries, x => x.Text == accum
+                                            || Regex.Replace(x.Text, @"[+-]?[0-9]+\.[0-9]+|[+-]?[0-9]+", "#") == candNorm))
+                                        { exists = true; break; }
+                                    }
+                                    if (exists) consumed = nj - j; // 일치하면 여기까지 채택 (계속 더 길게도 시도)
+                                }
+                                if (consumed > 0)
+                                {
+                                    // 채택된 길이만큼만 다시 병합 (accum이 초과 병합됐을 수 있으므로 재구성)
+                                    string merged = optLine.Trim();
+                                    for (int m = 1; m <= consumed; m++)
+                                        merged += "\n" + Regex.Replace(asOpt[j + m], @"\s*—\s*변경이 불가능한 값$", "").Trim();
+                                    optLine = merged;
+                                    j += consumed; // 병합한 줄들 건너뜀
+                                }
+                            }
+
                             string[] asTmp = Regex.Replace(optLine, @" \([\w\s]+\)\: ", ": ").Split(':');
 
                             if (lItemOption.ContainsKey(asTmp[0]))
@@ -264,7 +299,16 @@ namespace Poe2TradeSearch
                                     bool resistance = false;
                                     bool crafted = optLine.IndexOf("(crafted)") > -1;
 
-                                    string input = Regex.Replace(optLine, @" \([a-zA-Z]+\)", "");
+                                    // "감소"로 끝나는 mod는 거래소에 "증가"(음수)로만 존재 → 증가로 바꾸고 값 음수화.
+                                    bool wasDecrease = false;
+                                    string optMatch = optLine;
+                                    if (Regex.IsMatch(optMatch, @"감소$"))
+                                    {
+                                        wasDecrease = true;
+                                        optMatch = Regex.Replace(optMatch, @"감소$", "증가");
+                                    }
+
+                                    string input = Regex.Replace(optMatch, @" \([a-zA-Z]+\)", "");
                                     input = Regex.Replace(input, @"\([+-]?[0-9]+\.?[0-9]*-[+-]?[0-9]+\.?[0-9]*\)", "");
                                     input = Regex.Escape(Regex.Replace(input, @"[+-]?[0-9]+\.[0-9]+|[+-]?[0-9]+", "#"));
                                     input = Regex.Replace(input, @"\\#", "[+-]?([0-9]+\\.[0-9]+|[0-9]+|\\#)");
@@ -272,21 +316,25 @@ namespace Poe2TradeSearch
 
                                     bool local_exists = false;
                                     DataEntrie filter = null;
-                                    Regex rgx = new Regex("^" + input + "$", RegexOptions.IgnoreCase);
+                                    // 끝에 카테고리 접미(호신부)/(플라스크)/(특정) 등을 선택적으로 허용.
+                                    Regex rgx = new Regex("^" + input + @"(\([^()]+\))?$", RegexOptions.IgnoreCase);
 
                                     foreach (DataResult data_result in mFilterData[z].Result)
                                     {
-                                        DataEntrie[] entries = Array.FindAll(data_result.Entries, x => rgx.IsMatch(x.Text));
+                                        // 데이터 텍스트의 고정 숫자("1회 추가")도 #자리로 취급해 매칭.
+                                        DataEntrie[] entries = Array.FindAll(data_result.Entries, x =>
+                                            rgx.IsMatch(x.Text) || rgx.IsMatch(Regex.Replace(x.Text, @"[+-]?[0-9]+\.[0-9]+|[+-]?[0-9]+", "#")));
 
                                         // 2개 이상 같은 옵션이 있을때 장비 옵션 (특정) 만 추출
                                         if (entries.Length > 1)
                                         {
-                                            // POE2: part 필드 없음 → lParticular + 카테고리로 로컬 stat 판별
+                                            // POE2: 로컬(특정) stat 판별 — 무기/방어구는 (특정), 장신구(accessory)는 글로벌.
+                                            // 무기·방어구에 붙은 방어/공속 등은 아이템 자신의 수치라 항상 (특정).
+                                            bool useLocal = cate_ids[0] != "accessory";
                                             DataEntrie[] entries_tmp = Array.FindAll(entries, x => {
                                                 string[] idParts = x.Id.Split('.');
                                                 if (idParts.Length != 2 || !RS.lParticular.ContainsKey(idParts[1])) return false;
-                                                byte partVal = RS.lParticular[idParts[1]];
-                                                return (partVal == 1 && cate_ids[0] == "weapon") || (partVal == 2 && cate_ids[0] != "weapon");
+                                                return useLocal;
                                             });
                                             if (entries_tmp.Length > 0)
                                             {
@@ -296,16 +344,16 @@ namespace Poe2TradeSearch
                                         }
                                         else if (entries.Length == 1)
                                         {
-                                            // 1개만 매칭됐을 때: 글로벌 버전이고 같은 그룹에 (특정) 버전이 있으면 카테고리에 맞게 교체
+                                            // 1개만 매칭됐을 때: 글로벌 버전이고, 무기/방어구면 같은 그룹의 (특정) 버전으로 교체.
+                                            // (장신구 accessory는 글로벌 그대로 사용)
                                             string[] matchedIdParts = entries[0].Id.Split('.');
-                                            if (matchedIdParts.Length == 2 && !RS.lParticular.ContainsKey(matchedIdParts[1]))
+                                            if (matchedIdParts.Length == 2 && !RS.lParticular.ContainsKey(matchedIdParts[1]) && cate_ids[0] != "accessory")
                                             {
                                                 string localText = entries[0].Text + "(특정)";
                                                 DataEntrie[] entries_tmp = Array.FindAll(data_result.Entries, x => {
                                                     string[] idParts = x.Id.Split('.');
                                                     if (x.Text != localText || idParts.Length != 2 || !RS.lParticular.ContainsKey(idParts[1])) return false;
-                                                    byte partVal = RS.lParticular[idParts[1]];
-                                                    return (partVal == 1 && cate_ids[0] == "weapon") || (partVal == 2 && cate_ids[0] != "weapon");
+                                                    return true;
                                                 });
                                                 if (entries_tmp.Length > 0)
                                                 {
@@ -366,6 +414,13 @@ namespace Poe2TradeSearch
                                                         MatchCollection matches = Regex.Matches(optLine, @"[-]?[0-9]+\.[0-9]+|[-]?[0-9]+");
                                                         min = isMin && matches.Count > idxMin ? StrToDouble(((Match)matches[idxMin]).Value, 99999) : 99999;
                                                         max = isMax && idxMin < idxMax && matches.Count > idxMax ? StrToDouble(((Match)matches[idxMax]).Value, 99999) : 99999;
+
+                                                        // "감소" mod는 거래소에 "증가"(음수)로 존재 → 추출한 값을 음수로.
+                                                        if (wasDecrease)
+                                                        {
+                                                            if (min != 99999) min = -min;
+                                                            if (max != 99999) max = -max;
+                                                        }
                                                     }
 
                                                     break;
@@ -483,11 +538,13 @@ namespace Poe2TradeSearch
                         }
                     }
 
-                    // 희귀 아이템: 빈 접두어/접미어 슬롯 자동 추가 (최대 3개씩, 지도 제외)
+                    // 희귀 아이템: 빈 접두어/접미어 슬롯 자동 추가 (지도 제외)
+                    // 일반 장비는 최대 3개씩, 주얼은 최대 2개씩.
                     if (rarity_id == "rare" && cate_ids[0] != "map" && k < 10)
                     {
-                        int emptyPrefix = Math.Max(0, 3 - prefixCount);
-                        int emptySuffix = Math.Max(0, 3 - suffixCount);
+                        int maxAffix = cate_ids[0] == "jewel" ? 2 : 3;
+                        int emptyPrefix = Math.Max(0, maxAffix - prefixCount);
+                        int emptySuffix = Math.Max(0, maxAffix - suffixCount);
 
                         string[] emptyStats = {
                             "pseudo.pseudo_number_of_empty_prefix_mods",
@@ -606,7 +663,8 @@ namespace Poe2TradeSearch
                                 item_type = item_type.Substring(z == 1 ? 12 : 4);
                         }
 
-                        if (!is_unIdentify && rarity_id == "magic")
+                        // magic은 접두/접미, normal은 "특출난" 등 품질 접두를 앞에서 벗기며 베이스 재매칭.
+                        if (!is_unIdentify && (rarity_id == "magic" || rarity_id == "normal"))
                         {
                             string[] tmp = item_type.Split(' ');
 
@@ -656,7 +714,7 @@ namespace Poe2TradeSearch
                                 ""
                             );
                         }
-                        catch { }
+                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine("디테일 텍스트 처리 실패: " + ex.Message); }
                     }
                     else
                     {
@@ -829,6 +887,10 @@ namespace Poe2TradeSearch
                         // (rate limit은 UpdatePrice 내 WaitForRateLimit가 보내기 전에 강제하므로 안전)
                         mAutoSearchTimer.Stop();
                         mAutoSearchTimerCount = 0;
+
+                        // 이전 검색의 5초 자동 숨김 타이머도 멈춘다.
+                        // (안 멈추면 새 결과가 뜨기 전에 창이 사라짐. RestartHideTimer가 새 결과 표시 후 다시 시작)
+                        mHideTimer?.Stop();
 
                         if (mConfigData.Options.AutoSearchDelay > 0)
                         {
@@ -1229,14 +1291,21 @@ namespace Poe2TradeSearch
                                     string[] tmp = new string[10];
                                     int cnt = x * 10;
                                     if (cnt >= resultData.Result.Length) break;
+                                    int tmpLen = 0;
                                     for (int i = 0; i < 10; i++)
                                     {
                                         if (i + cnt >= resultData.Result.Length) break;
-                                        tmp[i] = resultData.Result[i + cnt];
+                                        // listing id를 URL 경로에 넣기 전 검증 (URL 조작 방지). 비정상 id는 제외.
+                                        string lid = resultData.Result[i + cnt];
+                                        if (IsSafeTradeId(lid))
+                                            tmp[tmpLen++] = lid;
                                     }
+                                    if (tmpLen == 0) continue; // 유효한 listing id 없음
 
                                     string json_result = "";
-                                    string url = RS.FetchApi[RS.ServerLang] + string.Join(",", tmp) + "?query=" + Uri.EscapeDataString(resultData.ID);
+                                    // 검색 id가 비정상이면 query 생략 (EscapeDataString이 인코딩하지만 방어적으로 검증)
+                                    string queryPart = IsSafeTradeId(resultData.ID) ? "?query=" + Uri.EscapeDataString(resultData.ID) : "";
+                                    string url = RS.FetchApi[RS.ServerLang] + string.Join(",", tmp, 0, tmpLen) + queryPart;
 
                                     // fetch 보내기 전 강제 throttle: 거래소가 알려준 한도/차단에 맞춰 대기.
                                     WaitForRateLimit("trade-fetch-request-limit", ct);
@@ -1362,6 +1431,12 @@ namespace Poe2TradeSearch
                         liPrice.Items.Add(msg + (msg_2 != "" ? " = " + msg_2 : ""));
                     }
                 });
+
+                // 시세 표시 완료 → 5초 자동 숨김 타이머 시작/재시작
+                liPrice.Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)delegate ()
+                {
+                    RestartHideTimer();
+                });
             }
         }
 
@@ -1380,7 +1455,12 @@ namespace Poe2TradeSearch
                 tkPriceInfo.Text = "시세 확인중...";
                 cbPriceListTotal.Text = "0/0 검색";
 
-                mPriceCts?.Cancel();
+                // 이전 토큰 소스 취소 후 해제 (WaitHandle 커널 핸들 누수 방지)
+                if (mPriceCts != null)
+                {
+                    mPriceCts.Cancel();
+                    mPriceCts.Dispose();
+                }
                 mPriceCts = new System.Threading.CancellationTokenSource();
                 var token = mPriceCts.Token;
 
@@ -1452,21 +1532,19 @@ namespace Poe2TradeSearch
         private int mAutoSearchTimerCount;
         private void AutoSearchTimer_Tick(object sender, EventArgs e)
         {
-            tkPriceInfo.Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)delegate ()
+            // DispatcherTimer.Tick은 이미 UI 스레드 — 추가 BeginInvoke 불필요
+            if (mAutoSearchTimerCount < 1)
             {
-                if (mAutoSearchTimerCount < 1)
-                {
-                    mAutoSearchTimer.Stop();
-                    if (liPrice.Items.Count == 0 && tkPriceCount.Text != ".")
-                        tkPriceInfo.Text = (string)tkPriceInfo.Tag;
-                }
-                else
-                {
-                    mAutoSearchTimerCount--;
-                    if (liPrice.Items.Count == 0 && tkPriceCount.Text != ".")
-                        tkPriceInfo.Text = (string)tkPriceInfo.Tag + " (" + mAutoSearchTimerCount + ")";
-                }
-            });
+                mAutoSearchTimer.Stop();
+                if (liPrice.Items.Count == 0 && tkPriceCount.Text != ".")
+                    tkPriceInfo.Text = (string)tkPriceInfo.Tag;
+            }
+            else
+            {
+                mAutoSearchTimerCount--;
+                if (liPrice.Items.Count == 0 && tkPriceCount.Text != ".")
+                    tkPriceInfo.Text = (string)tkPriceInfo.Tag + " (" + mAutoSearchTimerCount + ")";
+            }
         }
 
         private List<string> ExtractListingBlocks(string json)
@@ -1549,13 +1627,47 @@ private ParserDictionary GetExchangeItem(string id)
             {
                 if (!mInstalledHotKey)
                     InstallRegisterHotKey();
-
             }
             else
             {
                 if (mInstalledHotKey)
                     RemoveRegisterHotKey();
             }
+        }
+
+        // 시세 표시가 끝났을 때 호출 → 자동 숨김 타이머를 처음부터 다시 시작.
+        // (새 Ctrl+C 검색마다 호출되어 5초 카운트가 초기화됨)
+        private void RestartHideTimer()
+        {
+            if (mHideTimer == null) return;
+            mHideTimer.Stop();
+            // HideDelay <= 0 이면 자동 숨김 비활성
+            if (mConfigData.Options.HideDelay <= 0) return;
+            // 시세 창이 떠 있고, 마우스가 창 위에 없고, 키보드 입력 중(입력 필드 편집)이 아닐 때만 카운트 시작
+            if (this.Visibility == Visibility.Visible && !mMouseOverWindow && !this.IsKeyboardFocusWithin)
+                mHideTimer.Start();
+        }
+
+        // 설정의 HideDelay 값을 타이머 간격에 반영. 0 이하면 멈춤(자동 숨김 끔).
+        private void ApplyHideDelay()
+        {
+            if (mHideTimer == null) return;
+            int sec = mConfigData.Options.HideDelay;
+            if (sec <= 0)
+            {
+                mHideTimer.Stop();
+                return;
+            }
+            mHideTimer.Interval = TimeSpan.FromSeconds(sec);
+        }
+
+        // 5초 경과 → 시세 창 숨김. 단 마우스가 창 위에 있으면 보류.
+        private void HideTimer_Tick(object sender, EventArgs e)
+        {
+            mHideTimer.Stop();
+            if (mMouseOverWindow) return; // hover 중이면 숨기지 않음 (MouseLeave 시 재시작)
+            if (this.Visibility == Visibility.Visible)
+                this.Visibility = Visibility.Hidden;
         }
 
         private void InstallRegisterHotKey()

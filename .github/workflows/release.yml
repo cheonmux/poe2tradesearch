@@ -1,0 +1,66 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # v1.0.0, v2.1.0 등 버전 태그가 푸시될 때 트리거
+
+permissions:
+  contents: write # 릴리즈 페이지에 빌드 결과물을 업로드하기 위해 쓰기 권한이 필요합니다.
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v2
+
+    - name: Restore NuGet packages
+      run: nuget restore Poe2TradeSearch.sln
+
+    - name: Build Solution
+      run: msbuild Poe2TradeSearch.sln /p:Configuration=Release /p:Platform="Any CPU"
+
+    - name: Prepare Release Artifacts
+      shell: pwsh
+      run: |
+        # 배포용 임시 폴더 생성
+        New-Item -ItemType Directory -Force -Path release_dist
+
+        # 실행 파일 및 설정 파일 복사
+        Copy-Item -Path "bin/Release/Poe2TradeSearch.exe" -Destination "release_dist/" -Force
+        
+        if (Test-Path "bin/Release/Poe2TradeSearch.exe.config") {
+            Copy-Item -Path "bin/Release/Poe2TradeSearch.exe.config" -Destination "release_dist/" -Force
+        }
+        
+        # 외부 DLL 라이브러리가 있을 경우를 대비하여 복사
+        if (Test-Path "bin/Release/*.dll") {
+            Copy-Item -Path "bin/Release/*.dll" -Destination "release_dist/" -Force
+        }
+
+        # 데이터 폴더 복사
+        if (Test-Path "bin/Release/data") {
+            Copy-Item -Path "bin/Release/data" -Destination "release_dist/" -Recurse -Force
+        } else {
+            # 빌드 디렉토리에 data 폴더가 없을 경우 백업으로 원본 데이터 복사
+            New-Item -ItemType Directory -Force -Path release_dist/data
+            Copy-Item -Path "_POE_Data/*" -Destination "release_dist/data/" -Force
+        }
+
+        # ZIP 압축 파일 생성
+        Compress-Archive -Path release_dist/* -DestinationPath Poe2TradeSearch.zip
+
+    - name: Create GitHub Release and Upload Asset
+      uses: softprops/action-gh-release@v2
+      with:
+        files: Poe2TradeSearch.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

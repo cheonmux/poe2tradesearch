@@ -72,6 +72,10 @@ namespace Poe2TradeSearch
         private bool mDisableClip = false;
         private bool mAdministrator = false;
 
+        // 시세 표시 후 일정 시간 뒤 시세 창 자동 숨김용
+        private System.Windows.Threading.DispatcherTimer mHideTimer;
+        private bool mMouseOverWindow = false; // 시세 창에 마우스가 올라가 있으면 숨김 보류
+
         private static int closeKeyCode = 0;
 
         private void SaveConfig()

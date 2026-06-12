@@ -92,6 +92,10 @@ namespace Poe2TradeSearch
             [DataMember(Name = "auto_search_delay")]
             internal int AutoSearchDelay = 10;
 
+            // 시세 창 자동 숨김 시간(초). 0이면 자동 숨김 비활성.
+            [DataMember(Name = "hide_delay")]
+            internal int HideDelay = 5;
+
             [DataMember(Name = "auto_check_unique")]
             internal bool AutoCheckUnique = false;
 

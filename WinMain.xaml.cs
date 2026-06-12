@@ -25,7 +25,8 @@ namespace Poe2TradeSearch
 
         private bool mHotkeyProcBlock = false;
         private bool mClipboardBlock = false;
-        private bool mLockUpdatePrice = false;
+        private volatile bool mLockUpdatePrice = false;
+        private HwndSource mHwndSource = null;
 
         DispatcherTimer mAutoSearchTimer;
 
@@ -43,6 +44,19 @@ namespace Poe2TradeSearch
             mAutoSearchTimer.Interval = TimeSpan.FromSeconds(1);
             mAutoSearchTimer.Tick += new EventHandler(AutoSearchTimer_Tick);
             tkPriceInfo.Tag = tkPriceInfo.Text = "시세를 검색하려면 클릭해주세요";
+
+            // 시세 창에 마우스가 올라가 있으면 자동 숨김 보류
+            this.MouseEnter += (s, ev) => mMouseOverWindow = true;
+            this.MouseLeave += (s, ev) => { mMouseOverWindow = false; RestartHideTimer(); };
+
+            // 입력 필드 편집(키보드 포커스) 중에는 숨김 보류. 포커스가 창 밖으로 나가면 타이머 재시작.
+            this.IsKeyboardFocusWithinChanged += (s, ev) =>
+            {
+                if (this.IsKeyboardFocusWithin)
+                    mHideTimer?.Stop();
+                else
+                    RestartHideTimer();
+            };
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -52,6 +66,9 @@ namespace Poe2TradeSearch
                 Application.Current.Shutdown(0xD); //ERROR_INVALID_DATA
                 return;
             }
+
+            // 저장된 창 위치 복원 (없으면 XAML 기본값 30,30 유지)
+            RestoreWindowPosition();
 
             string outString = "";
 
@@ -110,8 +127,8 @@ namespace Poe2TradeSearch
 
             /////////////////
             mMainHwnd = new WindowInteropHelper(this).Handle;
-            HwndSource source = HwndSource.FromHwnd(mMainHwnd);
-            source.AddHook(new HwndSourceHook(WndProc));
+            mHwndSource = HwndSource.FromHwnd(mMainHwnd);
+            mHwndSource.AddHook(new HwndSourceHook(WndProc));
 
             if (mAdministrator)
             {
@@ -131,13 +148,16 @@ namespace Poe2TradeSearch
                 //EventHook.EventAction += new EventHandler(WinEvent);
                 //EventHook.Start();
 
-
-
                 DispatcherTimer timer = new DispatcherTimer();
                 timer.Interval = TimeSpan.FromMilliseconds(1000);
                 timer.Tick += new EventHandler(Timer_Tick);
                 timer.Start();
             }
+
+            // 시세 표시 후 N초 뒤 시세 창 자동 숨김 (권한 무관하게 동작). 시간은 설정값(HideDelay).
+            mHideTimer = new DispatcherTimer();
+            mHideTimer.Tick += new EventHandler(HideTimer_Tick);
+            ApplyHideDelay();
 
             if (!mDisableClip)
             {
@@ -242,9 +262,11 @@ namespace Poe2TradeSearch
                             try
                             {
                                 ResultData resultData = Json.Deserialize<ResultData>(request_result);
-                                Process.Start(RS.TradeUrl[RS.ServerLang] + RS.ServerType + "/" + resultData.ID);
+                                // API 응답 id를 브라우저로 열기 전 검증 (URL 조작/명령 탈취 방지)
+                                if (IsSafeTradeId(resultData.ID))
+                                    Process.Start(RS.TradeUrl[RS.ServerLang] + RS.ServerType + "/" + resultData.ID);
                             }
-                            catch { }
+                            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("브라우저 열기 실패: " + ex.Message); }
                         }
                     });
 
@@ -270,7 +292,54 @@ namespace Poe2TradeSearch
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
             // "최소화" 버튼: 트레이로 숨김 (완전 종료는 창 오른쪽 위 X 버튼에서만).
+            SaveWindowPosition(); // 숨김 전 위치 저장
             Hide();
+        }
+
+        // 현재 창 위치를 Config(Position="Left,Top")에 저장.
+        private void SaveWindowPosition()
+        {
+            try
+            {
+                if (mConfigData?.Options == null) return;
+                // 정상 좌표일 때만 저장 (최소화/숨김 상태의 NaN·음수 비정상값 무시)
+                if (double.IsNaN(this.Left) || double.IsNaN(this.Top)) return;
+                mConfigData.Options.Position =
+                    ((int)this.Left).ToString() + "," + ((int)this.Top).ToString();
+                SaveConfig();
+            }
+            catch { /* 위치 저장 실패는 무시 (UX 비핵심) */ }
+        }
+
+        // 저장된 Position을 창 위치로 복원. 화면 밖이면 보정.
+        private void RestoreWindowPosition()
+        {
+            try
+            {
+                string pos = mConfigData?.Options?.Position;
+                if (string.IsNullOrWhiteSpace(pos)) return;
+
+                string[] parts = pos.Split(',');
+                if (parts.Length != 2) return;
+                if (!int.TryParse(parts[0].Trim(), out int left)) return;
+                if (!int.TryParse(parts[1].Trim(), out int top)) return;
+
+                // 가상 화면 경계 안으로 클램프 (모니터 분리/해상도 변경 대비)
+                double vLeft = SystemParameters.VirtualScreenLeft;
+                double vTop = SystemParameters.VirtualScreenTop;
+                double vRight = vLeft + SystemParameters.VirtualScreenWidth;
+                double vBottom = vTop + SystemParameters.VirtualScreenHeight;
+
+                // 최소 100px는 화면 안에 보이도록 (완전 화면 밖 방지)
+                if (left < vLeft) left = (int)vLeft;
+                if (top < vTop) top = (int)vTop;
+                if (left > vRight - 100) left = (int)(vRight - 100);
+                if (top > vBottom - 100) top = (int)(vBottom - 100);
+
+                this.Left = left;
+                this.Top = top;
+            }
+            catch { /* 복원 실패 시 XAML 기본 위치 사용 */ }
         }
 
         private void cbAiiCheck_Checked(object sender, RoutedEventArgs e)
@@ -362,7 +431,7 @@ namespace Poe2TradeSearch
                     tkPriceInfo.Foreground = tkPriceCount.Foreground = System.Windows.Media.Brushes.DeepPink;
                 }
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("가격 정보 색상 변경 실패: " + ex.Message); }
         }
 
         private void tabControl1_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -425,7 +494,6 @@ namespace Poe2TradeSearch
                 + "원작: https://github.com/phiDelPark/PoeTradeSearch" + '\n'
                 + "POE2 포팅: https://poe2tools.net/" + '\n' + '\n'
                 + "시세 보는법: 검색수[.+] 최소값 ~ 최대값 = 많은[수] 1 ~ 2위" + '\n' + '\n'
-                + "단축키 기능은 관리자 권한으로 실행해야 작동합니다." + '\n'
                 + "   F11) 일시 중지" + '\n'
                 + "   ESC) 창 닫기" + '\n' + '\n'
                 + "리그/검색 옵션은 ⚙ 버튼 또는 data\\Config.txt 에서 설정 가능합니다." + '\n'
@@ -447,11 +515,15 @@ namespace Poe2TradeSearch
             int currentKeycode = runShortcut?.Keycode ?? 0;
             bool currentCtrl = runShortcut?.Ctrl ?? false;
 
-            WinSetting dlg = new WinSetting(useAutoClip, currentKeycode, currentCtrl);
+            int currentHideDelay = mConfigData.Options.HideDelay;
+
+            WinSetting dlg = new WinSetting(useAutoClip, currentKeycode, currentCtrl, currentHideDelay);
             dlg.Owner = this;
 
             if (dlg.ShowDialog() == true)
             {
+                mConfigData.Options.HideDelay = dlg.HideDelay;
+                ApplyHideDelay();
                 ApplyShortcutSetting(dlg.UseAutoClip, dlg.CapturedKeycode, dlg.UseCtrl);
             }
         }
@@ -487,6 +559,13 @@ namespace Poe2TradeSearch
                     Native.ChangeClipboardChain(mMainHwnd, mNextClipBoardViewerHWnd);
                 mNextClipBoardViewerHWnd = Native.SetClipboardViewer(mMainHwnd);
             }
+            else if (!useAutoClip && wasAutoClip)
+            {
+                // 자동 → 수동: 클립보드 감시 해제
+                if (mNextClipBoardViewerHWnd != IntPtr.Zero)
+                    Native.ChangeClipboardChain(mMainHwnd, mNextClipBoardViewerHWnd);
+                mNextClipBoardViewerHWnd = IntPtr.Zero;
+            }
 
             // Config.txt 저장
             SaveConfig();
@@ -495,9 +574,13 @@ namespace Poe2TradeSearch
             if (mAdministrator)
                 InstallRegisterHotKey();
 
-            string msg = useAutoClip
-                ? "Ctrl+C 자동 감지 모드로 변경되었습니다."
-                : $"단축키가 설정되었습니다. (재시작 없이 즉시 적용)";
+            string msg;
+            if (useAutoClip)
+                msg = "Ctrl+C 자동 감지 모드로 변경되었습니다.";
+            else if (mAdministrator)
+                msg = "단축키가 설정되었습니다.";
+            else
+                msg = "단축키가 설정되었지만, 관리자 권한이 없어 작동하지 않습니다.\n프로그램을 관리자 권한으로 다시 실행해주세요.";
             MessageBox.Show(this, msg, "설정 완료");
         }
 
@@ -527,12 +610,14 @@ namespace Poe2TradeSearch
                 MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (result == MessageBoxResult.Yes)
             {
+                SaveWindowPosition(); // 종료 전 현재 창 위치 저장
                 e.Cancel = false;
                 Application.Current.Shutdown();
                 return;
             }
 
             e.Cancel = true;
+            SaveWindowPosition(); // 숨김 시에도 위치 저장
             Keyboard.ClearFocus();
             this.Visibility = Visibility.Hidden;
             // 자동 시세 검색으로 바뀐 텍스트 닫을때 초기화
@@ -543,6 +628,13 @@ namespace Poe2TradeSearch
         private void Window_Closed(object sender, EventArgs e)
         {
             mGamePadThreadRunning = false;
+
+            // 메시지 훅 해제 (상주 앱 자원 정리)
+            if (mHwndSource != null)
+            {
+                mHwndSource.RemoveHook(new HwndSourceHook(WndProc));
+                mHwndSource = null;
+            }
 
             if (mNextClipBoardViewerHWnd != IntPtr.Zero)
                 Native.ChangeClipboardChain(mMainHwnd, mNextClipBoardViewerHWnd);
@@ -590,7 +682,7 @@ namespace Poe2TradeSearch
                                         System.Windows.Clipboard.ContainsText(System.Windows.TextDataFormat.Text))
                                         ItemTextParser(GetClipText(System.Windows.Clipboard.ContainsText(System.Windows.TextDataFormat.UnicodeText)));
                                 }
-                                catch { }
+                                catch (Exception ex) { System.Diagnostics.Debug.WriteLine("클립보드 파싱 실패: " + ex.Message); }
                                 mClipboardBlock = false;
                             });
                         }
