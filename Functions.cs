@@ -301,7 +301,8 @@ namespace Poe2TradeSearch
         {
             System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
             FileVersionInfo fvi = FileVersionInfo.GetVersionInfo(assembly.Location);
-            return fvi.FileVersion;
+            // ProductVersion = AssemblyInformationalVersion ("0.5.1", 3단위). 없으면 FileVersion 폴백.
+            return string.IsNullOrEmpty(fvi.ProductVersion) ? fvi.FileVersion : fvi.ProductVersion;
         }
 
         // poe.ninja 시세 캐시 (화폐 id → divine 가치)

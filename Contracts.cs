@@ -49,6 +49,20 @@ namespace Poe2TradeSearch
             public byte LangType;
         }
 
+        // GitHub releases/latest 응답 (자동 업데이트 확인용, 필요한 필드만)
+        [DataContract]
+        internal class GithubRelease
+        {
+            [DataMember(Name = "tag_name")]
+            internal string TagName = null;
+
+            [DataMember(Name = "html_url")]
+            internal string HtmlUrl = null;
+
+            [DataMember(Name = "prerelease")]
+            internal bool Prerelease = false;
+        }
+
         [DataContract()]
         internal class ConfigData
         {

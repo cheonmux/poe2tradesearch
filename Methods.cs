@@ -1349,17 +1349,18 @@ namespace Poe2TradeSearch
                                                 string currency = fetchData.Result[i].Listing.Price.Currency;
                                                 double amount = fetchData.Result[i].Listing.Price.Amount;
 
+                                                ParserDictionary currencyItem = GetExchangeItem(currency);
+                                                string keyName = currencyItem != null ? currencyItem.Text[0] : currency;
+
                                                 liPrice.Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)delegate ()
                                                 {
-                                                    ParserDictionary item = GetExchangeItem(currency);
-                                                    string keyName = item != null ? item.Text[0] : currency;
                                                     liPrice.Items.Add(String.Format("{0} {1} [{2}]",
                                                         GetLapsedTime(indexed).PadRight(10, ' '),
                                                         (amount + " " + keyName).PadRight(12, ' '),
                                                         account));
                                                 });
 
-                                                key = Math.Round(amount - 0.1) + " " + currency;
+                                                key = Math.Round(amount - 0.1) + " " + keyName;
                                                 if (currencys.ContainsKey(key)) currencys[key]++;
                                                 else currencys.Add(key, 1);
                                                 total++;

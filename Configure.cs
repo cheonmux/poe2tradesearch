@@ -10,11 +10,11 @@ namespace Poe2TradeSearch
         internal static string PoeClass = "POEWindowClass";
         internal static string PoeCaption = "Path of Exile 2";
 
-        internal static string[] TradeUrl = { "https://poe.game.daum.net/trade2/search/poe2/", "https://www.pathofexile.com/trade2/search/poe2/" };
-        internal static string[] TradeApi = { "https://poe.game.daum.net/api/trade2/search/poe2/", "https://www.pathofexile.com/api/trade2/search/poe2/" };
-        internal static string[] FetchApi = { "https://poe.game.daum.net/api/trade2/fetch/", "https://www.pathofexile.com/api/trade2/fetch/" };
-        internal static string[] ExchangeUrl = { "https://poe.game.daum.net/trade2/exchange/poe2/", "https://www.pathofexile.com/trade2/exchange/poe2/" };
-        internal static string[] ExchangeApi = { "https://poe.game.daum.net/api/trade2/exchange/poe2/", "https://www.pathofexile.com/api/trade2/exchange/poe2/" };
+        internal static string[] TradeUrl = { "https://poe.kakaogames.com/trade2/search/poe2/", "https://www.pathofexile.com/trade2/search/poe2/" };
+        internal static string[] TradeApi = { "https://poe.kakaogames.com/api/trade2/search/poe2/", "https://www.pathofexile.com/api/trade2/search/poe2/" };
+        internal static string[] FetchApi = { "https://poe.kakaogames.com/api/trade2/fetch/", "https://www.pathofexile.com/api/trade2/fetch/" };
+        internal static string[] ExchangeUrl = { "https://poe.kakaogames.com/trade2/exchange/poe2/", "https://www.pathofexile.com/trade2/exchange/poe2/" };
+        internal static string[] ExchangeApi = { "https://poe.kakaogames.com/api/trade2/exchange/poe2/", "https://www.pathofexile.com/api/trade2/exchange/poe2/" };
 
         internal static string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
 

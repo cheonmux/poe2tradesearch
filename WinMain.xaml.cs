@@ -125,6 +125,9 @@ namespace Poe2TradeSearch
             // poe.ninja 시세 백그라운드 프리로드
             System.Threading.Tasks.Task.Run(() => FetchNinjaPrices());
 
+            // 새 버전 확인 (백그라운드, 실패는 조용히 무시)
+            CheckUpdate();
+
             /////////////////
             mMainHwnd = new WindowInteropHelper(this).Handle;
             mHwndSource = HwndSource.FromHwnd(mMainHwnd);

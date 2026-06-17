@@ -14,7 +14,7 @@ namespace Poe2TradeSearch
         private bool FilterDataUpdate(string path)
         {
             bool success = false;
-            string[] urls = { "https://poe.game.daum.net/api/trade2/data/stats", "https://www.pathofexile.com/api/trade2/data/stats" };
+            string[] urls = { "https://poe.kakaogames.com/api/trade2/data/stats", "https://www.pathofexile.com/api/trade2/data/stats" };
 
             // 마우스 훜시 프로그램에 딜레이가 생겨 쓰레드 처리
             Thread thread = new Thread(() =>
@@ -95,7 +95,7 @@ namespace Poe2TradeSearch
         private bool ItemDataUpdate(string path)
         {
             bool success = false;
-            string[] urls = { "https://poe.game.daum.net/api/trade2/data/items", "https://www.pathofexile.com/api/trade2/data/items" };
+            string[] urls = { "https://poe.kakaogames.com/api/trade2/data/items", "https://www.pathofexile.com/api/trade2/data/items" };
 
             // 마우스 훜시 프로그램에 딜레이가 생겨 쓰레드 처리
             Thread thread = new Thread(() =>
@@ -129,7 +129,7 @@ namespace Poe2TradeSearch
         private bool StaticDataUpdate(string path)
         {
             bool success = false;
-            string[] urls = { "https://poe.game.daum.net/api/trade2/data/static", "https://www.pathofexile.com/api/trade2/data/static" };
+            string[] urls = { "https://poe.kakaogames.com/api/trade2/data/static", "https://www.pathofexile.com/api/trade2/data/static" };
 
             // 마우스 훜시 프로그램에 딜레이가 생겨 쓰레드 처리
             Thread thread = new Thread(() =>
@@ -158,6 +158,68 @@ namespace Poe2TradeSearch
             thread.Join();
 
             return success;
+        }
+
+        // 시작 시 GitHub 최신 릴리스와 현재 버전을 비교해 새 버전이 있으면 알림.
+        // 네트워크 오류 등은 조용히 무시 (업데이트 확인 실패가 앱 사용을 막지 않도록).
+        private const string ReleaseLatestApi = "https://api.github.com/repos/cheonmux/poe2tradesearch/releases/latest";
+
+        private void CheckUpdate()
+        {
+            // 마우스 훅 딜레이 회피 위해 다른 데이터 갱신과 동일하게 쓰레드 처리.
+            Thread thread = new Thread(() =>
+            {
+                try
+                {
+                    string sResult = SendHTTP(null, ReleaseLatestApi, 5);
+                    if (string.IsNullOrEmpty(sResult)) return;
+
+                    GithubRelease release = Json.Deserialize<GithubRelease>(sResult);
+                    if (release == null || release.Prerelease || string.IsNullOrEmpty(release.TagName)) return;
+
+                    if (!TryParseVersion(release.TagName, out Version latest)) return;
+                    if (!TryParseVersion(GetFileVersion(), out Version current)) return;
+
+                    if (latest <= current) return;
+
+                    string url = string.IsNullOrEmpty(release.HtmlUrl)
+                        ? "https://github.com/cheonmux/poe2tradesearch/releases/latest"
+                        : release.HtmlUrl;
+
+                    Dispatcher.BeginInvoke((Action)delegate ()
+                    {
+                        MessageBoxResult r = MessageBox.Show(
+                            Application.Current.MainWindow,
+                            "새 버전이 있습니다.\n\n현재: " + current + "\n최신: " + release.TagName + "\n\n다운로드 페이지를 여시겠습니까?",
+                            "업데이트 확인",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Information);
+
+                        if (r == MessageBoxResult.Yes)
+                            System.Diagnostics.Process.Start(url);
+                    });
+                }
+                catch
+                {
+                    // 업데이트 확인 실패는 무시
+                }
+            });
+
+            thread.IsBackground = true;
+            thread.Start();
+        }
+
+        // "v0.5.1", "0.5.1.0" 등에서 숫자 버전만 추출해 Version으로 파싱.
+        private bool TryParseVersion(string raw, out Version version)
+        {
+            version = null;
+            if (string.IsNullOrEmpty(raw)) return false;
+
+            string s = raw.Trim().TrimStart('v', 'V');
+            int cut = s.IndexOf('-'); // "0.5.1-beta" 같은 접미 제거
+            if (cut > 0) s = s.Substring(0, cut);
+
+            return Version.TryParse(s, out version);
         }
     }
 }
