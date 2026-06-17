@@ -52,6 +52,8 @@
         <Button Name="btnSearch" Content="거래소에서 찾기" HorizontalAlignment="Left" Margin="0,460,0,-5" VerticalAlignment="Top" Width="200" Height="38" Click="Button_Click" />
         <Button Name="btnClose" Content="최소화" HorizontalAlignment="Left" Margin="205,460,0,-5" VerticalAlignment="Top" Width="180" Height="38" Click="Button_Click_1" IsDefault="True" FontWeight="Bold" />
 
+        <TextBlock Name="tbVersion" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="205,502,0,0" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" FontSize="10" />
+
         <TabControl Name="tabControl1" BorderThickness="0 1" HorizontalAlignment="Left" Height="372" Margin="0,77,0,0" VerticalAlignment="Top" Width="385" TabStripPlacement="Bottom" SelectionChanged="tabControl1_SelectionChanged">
             <TabControl.Resources>
                 <Style TargetType="TabPanel">

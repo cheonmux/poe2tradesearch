@@ -574,4 +574,77 @@ namespace Poe2TradeSearch
             Native.SetForegroundWindow(Native.FindWindow(RS.PoeClass, RS.PoeCaption));
         }
     }
+
+    internal static class MouseHook
+    {
+        internal static event EventHandler MouseAction = delegate { };
+
+        internal static void Start()
+        {
+            if (_hookID != IntPtr.Zero) Stop();
+            _hookID = SetHook(_proc);
+        }
+
+        internal static void Stop()
+        {
+            try { Native.UnhookWindowsHookEx(_hookID); _hookID = IntPtr.Zero; }
+            catch { }
+        }
+
+        private static Native.LowLevelMouseProc _proc = HookCallback;
+        private static IntPtr _hookID = IntPtr.Zero;
+
+        private static IntPtr SetHook(Native.LowLevelMouseProc proc)
+        {
+            using (var curProcess = System.Diagnostics.Process.GetCurrentProcess())
+            using (var curModule = curProcess.MainModule)
+                return Native.SetWindowsHookEx(Native.WH_MOUSE_LL, proc, Native.GetModuleHandle(curModule.ModuleName), 0);
+        }
+
+        private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+        {
+            if (nCode >= 0)
+            {
+                if ((MouseMessages)wParam == MouseMessages.WM_MOUSEWHEEL &&
+                    (Native.GetKeyState(VK_CONTROL) & 0x100) != 0)
+                {
+                    if (Native.GetForegroundWindow().Equals(Native.FindWindow(RS.PoeClass, RS.PoeCaption)))
+                    {
+                        try
+                        {
+                            var hookStruct = (MSLLHOOKSTRUCT)System.Runtime.InteropServices.Marshal.PtrToStructure(lParam, typeof(MSLLHOOKSTRUCT));
+                            int zDelta = (short)(hookStruct.mouseData >> 0x10);
+                            MouseAction(null, new MouseEventArgs { zDelta = zDelta });
+                        }
+                        catch { }
+                        return new IntPtr(1);
+                    }
+                }
+                WinMain.mMouseHookCallbackTime = DateTime.Now;
+            }
+            return Native.CallNextHookEx(_hookID, nCode, wParam, lParam);
+        }
+
+        private const int VK_CONTROL = 0x11;
+
+        public class MouseEventArgs : EventArgs
+        {
+            public int zDelta { get; set; }
+        }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct MSLLHOOKSTRUCT
+        {
+            public System.Drawing.Point pt;
+            public uint mouseData;
+            public uint flags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        private enum MouseMessages
+        {
+            WM_MOUSEWHEEL = 0x020A,
+        }
+    }
 }

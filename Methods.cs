@@ -1239,6 +1239,7 @@ namespace Poe2TradeSearch
                         ParserDictionary wantItem = GetExchangeItem(entity[1]);
                         string haveName = haveItem != null ? haveItem.Text[0] : entity[0];
                         string wantName = wantItem != null ? wantItem.Text[0] : entity[1];
+                        haveName = ShortenCurrencyName(haveName);
 
                         if (haveVal > 0 && wantVal > 0)
                         {
@@ -1252,12 +1253,12 @@ namespace Poe2TradeSearch
                             {
                                 // 신성 이상: 엑잘 + 신성 표시
                                 string divRounded = Math.Round(haveVal, 2).ToString(System.Globalization.CultureInfo.InvariantCulture);
-                                msg = "1 " + haveName + " ≈ " + exRounded + " 엑잘티드 오브 = " + divRounded + " 신성한 오브";
+                                msg = "1 " + haveName + " ≈ " + exRounded + " 엑잘 = " + divRounded + " 신성";
                             }
                             else
                             {
                                 // 신성 미만: 엑잘만 표시
-                                msg = "1 " + haveName + " ≈ " + exRounded + " 엑잘티드 오브";
+                                msg = "1 " + haveName + " ≈ " + exRounded + " 엑잘";
                             }
                         }
                         else if (haveVal <= 0)
@@ -1350,7 +1351,7 @@ namespace Poe2TradeSearch
                                                 double amount = fetchData.Result[i].Listing.Price.Amount;
 
                                                 ParserDictionary currencyItem = GetExchangeItem(currency);
-                                                string keyName = currencyItem != null ? currencyItem.Text[0] : currency;
+                                                string keyName = ShortenCurrencyName(currencyItem != null ? currencyItem.Text[0] : currency);
 
                                                 liPrice.Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)delegate ()
                                                 {
@@ -1637,6 +1638,51 @@ private ParserDictionary GetExchangeItem(string id)
                 if (mInstalledHotKey)
                     RemoveRegisterHotKey();
             }
+
+            if (!mPausedHotKey && mConfigData.Options.UseCtrlWheel)
+            {
+                TimeSpan diff = DateTime.Now - mMouseHookCallbackTime;
+                if (diff.Ticks > 3000000000) // 5분간 콜백 없으면 훅 재등록
+                {
+                    mMouseHookCallbackTime = DateTime.Now;
+                    MouseHook.Start();
+                }
+            }
+        }
+
+        private void MouseEvent(object sender, EventArgs e)
+        {
+            if (!mHotkeyProcBlock)
+            {
+                mHotkeyProcBlock = true;
+                try
+                {
+                    int zDelta = ((MouseHook.MouseEventArgs)e).zDelta;
+                    if (zDelta != 0)
+                        System.Windows.Forms.SendKeys.SendWait(zDelta > 0 ? "{Left}" : "{Right}");
+                }
+                catch { }
+                mHotkeyProcBlock = false;
+            }
+        }
+
+        private static readonly System.Collections.Generic.Dictionary<string, string> sCurrencyShortNames
+            = new System.Collections.Generic.Dictionary<string, string>
+        {
+            { "연금술의 오브", "연금" },
+            { "진화의 오브",   "진화" },
+            { "바알 오브",     "바알" },
+            { "제왕의 오브",   "제왕" },
+            { "카오스 오브",   "카오스" },
+            { "확장의 오브",   "확장" },
+            { "신성한 오브",   "신성" },
+            { "엑잘티드 오브", "엑잘" },
+        };
+
+        private static string ShortenCurrencyName(string name)
+        {
+            string result;
+            return sCurrencyShortNames.TryGetValue(name, out result) ? result : name;
         }
 
         // 시세 표시가 끝났을 때 호출 → 자동 숨김 타이머를 처음부터 다시 시작.

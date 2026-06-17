@@ -23,6 +23,7 @@ namespace Poe2TradeSearch
         private Thread mGamePadThread;
         private bool mGamePadThreadRunning = false;
 
+        public static DateTime mMouseHookCallbackTime;
         private bool mHotkeyProcBlock = false;
         private bool mClipboardBlock = false;
         private volatile bool mLockUpdatePrice = false;
@@ -61,6 +62,8 @@ namespace Poe2TradeSearch
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            tbVersion.Text = "v" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+
             if (!Setting())
             {
                 Application.Current.Shutdown(0xD); //ERROR_INVALID_DATA
@@ -150,6 +153,13 @@ namespace Poe2TradeSearch
                 //InstallRegisterHotKey();
                 //EventHook.EventAction += new EventHandler(WinEvent);
                 //EventHook.Start();
+
+                if (mConfigData.Options.UseCtrlWheel)
+                {
+                    mMouseHookCallbackTime = DateTime.Now;
+                    MouseHook.MouseAction += new EventHandler(MouseEvent);
+                    MouseHook.Start();
+                }
 
                 DispatcherTimer timer = new DispatcherTimer();
                 timer.Interval = TimeSpan.FromMilliseconds(1000);
@@ -520,7 +530,7 @@ namespace Poe2TradeSearch
 
             int currentHideDelay = mConfigData.Options.HideDelay;
 
-            WinSetting dlg = new WinSetting(useAutoClip, currentKeycode, currentCtrl, currentHideDelay);
+            WinSetting dlg = new WinSetting(useAutoClip, currentKeycode, currentCtrl, currentHideDelay, mConfigData.Options.League, mConfigData.Options.UseCtrlWheel);
             dlg.Owner = this;
 
             if (dlg.ShowDialog() == true)
@@ -528,6 +538,37 @@ namespace Poe2TradeSearch
                 mConfigData.Options.HideDelay = dlg.HideDelay;
                 ApplyHideDelay();
                 ApplyShortcutSetting(dlg.UseAutoClip, dlg.CapturedKeycode, dlg.UseCtrl);
+
+                if (mConfigData.Options.League != dlg.League)
+                {
+                    mConfigData.Options.League = dlg.League;
+                    RS.ServerType = dlg.League.Replace(" ", "%20");
+                    mNinjaLastFetch = DateTime.MinValue; // 리그 변경 시 캐시 즉시 무효화
+                }
+                else
+                {
+                    mConfigData.Options.League = dlg.League;
+                    RS.ServerType = dlg.League.Replace(" ", "%20");
+                }
+
+                bool prevCtrlWheel = mConfigData.Options.UseCtrlWheel;
+                mConfigData.Options.UseCtrlWheel = dlg.UseCtrlWheel;
+                if (prevCtrlWheel != dlg.UseCtrlWheel)
+                {
+                    if (dlg.UseCtrlWheel)
+                    {
+                        mMouseHookCallbackTime = DateTime.Now;
+                        MouseHook.MouseAction += new EventHandler(MouseEvent);
+                        MouseHook.Start();
+                    }
+                    else
+                    {
+                        MouseHook.MouseAction -= new EventHandler(MouseEvent);
+                        MouseHook.Stop();
+                    }
+                }
+
+                SaveConfig();
             }
         }
 
@@ -577,13 +618,9 @@ namespace Poe2TradeSearch
             if (mAdministrator)
                 InstallRegisterHotKey();
 
-            string msg;
-            if (useAutoClip)
-                msg = "Ctrl+C 자동 감지 모드로 변경되었습니다.";
-            else if (mAdministrator)
-                msg = "단축키가 설정되었습니다.";
-            else
-                msg = "단축키가 설정되었지만, 관리자 권한이 없어 작동하지 않습니다.\n프로그램을 관리자 권한으로 다시 실행해주세요.";
+            string msg = "설정이 저장되었습니다.";
+            if (!mAdministrator && !useAutoClip)
+                msg += "\n단축키는 관리자 권한이 없어 작동하지 않습니다.\n프로그램을 관리자 권한으로 다시 실행해주세요.";
             MessageBox.Show(this, msg, "설정 완료");
         }
 
@@ -647,6 +684,8 @@ namespace Poe2TradeSearch
                 if (mInstalledHotKey)
                     RemoveRegisterHotKey();
 
+                if (mConfigData.Options.UseCtrlWheel)
+                    MouseHook.Stop();
             }
         }
 

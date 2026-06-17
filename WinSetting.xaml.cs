@@ -9,17 +9,21 @@ namespace Poe2TradeSearch
         public int CapturedKeycode { get; private set; }
         public bool UseCtrl { get; private set; }
         public int HideDelay { get; private set; }
+        public string League { get; private set; }
+        public bool UseCtrlWheel { get; private set; }
 
         private int _pendingKeycode = 0;
         private bool _capturing = false;
 
-        public WinSetting(bool useAutoClip, int currentKeycode, bool currentCtrl, int hideDelay)
+        public WinSetting(bool useAutoClip, int currentKeycode, bool currentCtrl, int hideDelay, string currentLeague, bool useCtrlWheel)
         {
             InitializeComponent();
             UseAutoClip = useAutoClip;
             CapturedKeycode = currentKeycode;
             UseCtrl = currentCtrl;
             HideDelay = hideDelay;
+            League = currentLeague ?? "Runes of Aldur";
+            UseCtrlWheel = useCtrlWheel;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -37,6 +41,17 @@ namespace Poe2TradeSearch
             }
 
             tbHideDelay.Text = HideDelay.ToString();
+            ckUseCtrlWheel.IsChecked = UseCtrlWheel;
+
+            foreach (System.Windows.Controls.ComboBoxItem item in cbLeague.Items)
+            {
+                if (item.Content.ToString() == League)
+                {
+                    cbLeague.SelectedItem = item;
+                    break;
+                }
+            }
+            if (cbLeague.SelectedIndex < 0) cbLeague.SelectedIndex = 0;
         }
 
         // 숫자만 입력 허용
@@ -137,6 +152,9 @@ namespace Poe2TradeSearch
             // 자동 숨김 시간 (빈값/파싱 실패 시 기본 5초)
             int hd;
             HideDelay = int.TryParse(tbHideDelay.Text, out hd) ? hd : 5;
+
+            League = (cbLeague.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content.ToString() ?? "Runes of Aldur";
+            UseCtrlWheel = ckUseCtrlWheel.IsChecked == true;
 
             DialogResult = true;
         }

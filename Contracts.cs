@@ -125,6 +125,9 @@ namespace Poe2TradeSearch
             // 창 위치 저장 ("Left,Top")
             [DataMember(Name = "position")]
             internal string Position = null;
+
+            [DataMember(Name = "use_ctrl_wheel")]
+            internal bool UseCtrlWheel = false;
         }
 
         [DataContract(Name = "shortcuts")]
