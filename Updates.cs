@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -164,7 +164,7 @@ namespace Poe2TradeSearch
         // 네트워크 오류 등은 조용히 무시 (업데이트 확인 실패가 앱 사용을 막지 않도록).
         private const string ReleaseLatestApi = "https://api.github.com/repos/cheonmux/poe2tradesearch/releases/latest";
 
-        private void CheckUpdate()
+        private void CheckUpdate(bool manualClick = false)
         {
             // 마우스 훅 딜레이 회피 위해 다른 데이터 갱신과 동일하게 쓰레드 처리.
             Thread thread = new Thread(() =>
@@ -172,15 +172,60 @@ namespace Poe2TradeSearch
                 try
                 {
                     string sResult = SendHTTP(null, ReleaseLatestApi, 5);
-                    if (string.IsNullOrEmpty(sResult)) return;
+                    if (string.IsNullOrEmpty(sResult))
+                    {
+                        if (manualClick)
+                        {
+                            Dispatcher.BeginInvoke((Action)delegate ()
+                            {
+                                MessageBox.Show(
+                                    Application.Current.MainWindow,
+                                    "업데이트 정보를 가져올 수 없습니다.\n네트워크 연결을 확인해주세요.",
+                                    "업데이트 확인",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Warning);
+                            });
+                        }
+                        return;
+                    }
 
                     GithubRelease release = Json.Deserialize<GithubRelease>(sResult);
-                    if (release == null || release.Prerelease || string.IsNullOrEmpty(release.TagName)) return;
+                    if (release == null || release.Prerelease || string.IsNullOrEmpty(release.TagName))
+                    {
+                        if (manualClick)
+                        {
+                            Dispatcher.BeginInvoke((Action)delegate ()
+                            {
+                                MessageBox.Show(
+                                    Application.Current.MainWindow,
+                                    "최신 버전을 사용 중입니다.",
+                                    "업데이트 확인",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Information);
+                            });
+                        }
+                        return;
+                    }
 
                     if (!TryParseVersion(release.TagName, out Version latest)) return;
                     if (!TryParseVersion(GetFileVersion(), out Version current)) return;
 
-                    if (latest <= current) return;
+                    if (latest <= current)
+                    {
+                        if (manualClick)
+                        {
+                            Dispatcher.BeginInvoke((Action)delegate ()
+                            {
+                                MessageBox.Show(
+                                    Application.Current.MainWindow,
+                                    "최신 버전을 사용 중입니다.",
+                                    "업데이트 확인",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Information);
+                            });
+                        }
+                        return;
+                    }
 
                     string url = string.IsNullOrEmpty(release.HtmlUrl)
                         ? "https://github.com/cheonmux/poe2tradesearch/releases/latest"
@@ -188,20 +233,39 @@ namespace Poe2TradeSearch
 
                     Dispatcher.BeginInvoke((Action)delegate ()
                     {
-                        MessageBoxResult r = MessageBox.Show(
-                            Application.Current.MainWindow,
-                            "새 버전이 있습니다.\n\n현재: " + current + "\n최신: " + release.TagName + "\n\n다운로드 페이지를 여시겠습니까?",
-                            "업데이트 확인",
-                            MessageBoxButton.YesNo,
-                            MessageBoxImage.Information);
+                        // 구버전인 경우 텍스트를 빨간색으로 변경하고 툴팁 업데이트
+                        tbVersion.Foreground = System.Windows.Media.Brushes.Red;
+                        tbVersion.ToolTip = "새 버전(v" + latest.ToString(3) + ") 업데이트 가능 (클릭하여 다운로드)";
 
-                        if (r == MessageBoxResult.Yes)
-                            System.Diagnostics.Process.Start(url);
+                        // 수동 클릭 시 혹은 업데이트 팝업을 직접 요청했을 때만 MessageBox 노출
+                        if (manualClick)
+                        {
+                            MessageBoxResult r = MessageBox.Show(
+                                Application.Current.MainWindow,
+                                "새 버전이 있습니다.\n\n현재: " + current + "\n최신: " + release.TagName + "\n\n다운로드 페이지를 여시겠습니까?",
+                                "업데이트 확인",
+                                MessageBoxButton.YesNo,
+                                MessageBoxImage.Information);
+
+                            if (r == MessageBoxResult.Yes)
+                                System.Diagnostics.Process.Start(url);
+                        }
                     });
                 }
                 catch
                 {
-                    // 업데이트 확인 실패는 무시
+                    if (manualClick)
+                    {
+                        Dispatcher.BeginInvoke((Action)delegate ()
+                        {
+                            MessageBox.Show(
+                                Application.Current.MainWindow,
+                                "업데이트 확인 중 오류가 발생했습니다.",
+                                "업데이트 확인",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Error);
+                        });
+                    }
                 }
             });
 

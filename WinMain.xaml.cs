@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
@@ -129,7 +129,13 @@ namespace Poe2TradeSearch
             System.Threading.Tasks.Task.Run(() => FetchNinjaPrices());
 
             // 새 버전 확인 (백그라운드, 실패는 조용히 무시)
-            CheckUpdate();
+            CheckUpdate(false);
+
+            // 12시간마다 백그라운드 업데이트 자동 감지
+            DispatcherTimer updateCheckTimer = new DispatcherTimer();
+            updateCheckTimer.Interval = TimeSpan.FromHours(12);
+            updateCheckTimer.Tick += (s, ev) => CheckUpdate(false);
+            updateCheckTimer.Start();
 
             /////////////////
             mMainHwnd = new WindowInteropHelper(this).Handle;
@@ -307,6 +313,11 @@ namespace Poe2TradeSearch
             // "최소화" 버튼: 트레이로 숨김 (완전 종료는 창 오른쪽 위 X 버튼에서만).
             SaveWindowPosition(); // 숨김 전 위치 저장
             Hide();
+        }
+
+        private void tbVersion_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            CheckUpdate(true);
         }
 
         // 현재 창 위치를 Config(Position="Left,Top")에 저장.
