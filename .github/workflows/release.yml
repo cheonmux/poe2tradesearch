@@ -1,12 +1,20 @@
 name: Build and Release
 
 on:
+  # 표준 방식: 버전 태그(v0.5.3 등)를 push할 때만 릴리스.
+  #   git tag v0.5.3 && git push origin v0.5.3
   push:
     tags:
-      - 'v*' # v1.0.0, v2.1.0 등 버전 태그가 푸시될 때 트리거
+      - 'v*'
+  # 급할 때 GitHub Actions 탭에서 버튼으로 수동 배포(버전 직접 입력).
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '릴리스 버전 (예: 0.5.3)'
+        required: true
 
 permissions:
-  contents: write # 릴리즈 페이지에 빌드 결과물을 업로드하기 위해 쓰기 권한이 필요합니다.
+  contents: write
 
 jobs:
   build:
@@ -15,6 +23,32 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Determine Version
+      id: version
+      shell: pwsh
+      run: |
+        # 태그 push면 태그명(v0.5.3)에서 'v'를 떼고, 수동 실행이면 입력값 사용.
+        if ($env:GITHUB_REF -like 'refs/tags/*') {
+            $ver = $env:GITHUB_REF -replace '^refs/tags/v?', ''
+        } else {
+            $ver = '${{ github.event.inputs.version }}'
+        }
+        Write-Host "Release version: $ver"
+        "version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+    - name: Update AssemblyInfo version
+      shell: pwsh
+      run: |
+        # 표시 버전/파일 버전을 릴리스 버전과 일치시킴.
+        $ver = '${{ steps.version.outputs.version }}'
+        $path = 'Properties/AssemblyInfo.cs'
+        $content = Get-Content $path -Raw
+        $content = $content -replace 'AssemblyVersion\("[^"]*"\)', "AssemblyVersion(`"$ver.0`")"
+        $content = $content -replace 'AssemblyFileVersion\("[^"]*"\)', "AssemblyFileVersion(`"$ver.0`")"
+        Set-Content -Path $path -Value $content -NoNewline
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
@@ -61,6 +95,9 @@ jobs:
     - name: Create GitHub Release and Upload Asset
       uses: softprops/action-gh-release@v2
       with:
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Release v${{ steps.version.outputs.version }}
         files: Poe2TradeSearch.zip
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

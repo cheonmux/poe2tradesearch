@@ -7,19 +7,20 @@
         mc:Ignorable="d" ResizeMode="NoResize" Topmost="True" SizeToContent="WidthAndHeight" Left="30" Top="30" FontFamily="Malgun Gothic" FontSize="12"
         Title="POE2 거래소 검색" Loaded="Window_Loaded" Closing="Window_Closing" Closed="Window_Closed" Deactivated="Window_Deactivated" PreviewKeyDown="Window_PreviewKeyDown" Activated="Window_Activated">
 
-    <Grid Margin="25, 20, 25, 25">
+    <Grid x:Name="rootGrid" Margin="25, 20, 25, 25">
         <ComboBox Name="cbRarity" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="5,0,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
             <ComboBox.Resources>
                 <sys:Double x:Key="{x:Static SystemParameters.VerticalScrollBarWidthKey}">0</sys:Double>
             </ComboBox.Resources>
         </ComboBox>
 
-        <ComboBox Name="cbName" HorizontalAlignment="Left" Margin="0,24,0,0" VerticalAlignment="Top" Width="385" FontWeight="Bold" SelectionChanged="cbName_SelectionChanged" />
+        <ComboBox Name="cbName" HorizontalAlignment="Left" Margin="0,24,0,0" VerticalAlignment="Top" Width="415" FontWeight="Bold" SelectionChanged="cbName_SelectionChanged" />
 
         <Label Name="lbDPS" Content="옵션" HorizontalAlignment="Left" Margin="0,54,0,0" VerticalAlignment="Top" />
         <Label Content="최소" HorizontalAlignment="Left" Margin="280,54,0,0" VerticalAlignment="Top" />
         <Label Content="최대" HorizontalAlignment="Left" Margin="320,54,0,0" VerticalAlignment="Top" />
         <CheckBox Name="cbAiiCheck" Content="" HorizontalAlignment="Left" Margin="365,59,0,0" VerticalAlignment="Top" Checked="cbAiiCheck_Checked" Unchecked="cbAiiCheck_Checked" />
+        <Label Content="등급" HorizontalAlignment="Left" Margin="383,54,0,0" VerticalAlignment="Top" Padding="0" />
 
         <TextBlock Name="cbPriceListTotal" Text="0" TextAlignment="Right" HorizontalAlignment="Left" Margin="285,59,0,0" VerticalAlignment="Top" Width="96" Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" Visibility="Hidden" />
 
@@ -31,7 +32,7 @@
             </Button.Resources>
         </Button>
 
-        <Button Content="⚙"  HorizontalAlignment="Left" Height="20" Margin="362,1,0,0" VerticalAlignment="Top" Width="20" Click="Button_Click_Setting" >
+        <Button Content="⚙"  HorizontalAlignment="Left" Height="20" Margin="392,1,0,0" VerticalAlignment="Top" Width="20" Click="Button_Click_Setting" >
             <Button.Resources>
                 <Style TargetType="Border">
                     <Setter Property="CornerRadius" Value="9"/>
@@ -39,7 +40,7 @@
             </Button.Resources>
         </Button>
 
-        <Button Content="?"  HorizontalAlignment="Left" Height="20" Margin="386,1,0,0" VerticalAlignment="Top" Width="20" Click="Button_Click_3" >
+        <Button Content="?"  HorizontalAlignment="Left" Height="20" Margin="416,1,0,0" VerticalAlignment="Top" Width="20" Click="Button_Click_3" >
             <Button.Resources>
                 <Style TargetType="Border">
                     <Setter Property="CornerRadius" Value="9"/>
@@ -50,11 +51,11 @@
         <TextBlock Name="tbHelpText" Text="시세 클릭시 새로고침" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" HorizontalAlignment="Left" Margin="5,430,0,0" VerticalAlignment="Top" IsEnabled="False" />
 
         <Button Name="btnSearch" Content="거래소에서 찾기" HorizontalAlignment="Left" Margin="0,460,0,-5" VerticalAlignment="Top" Width="200" Height="38" Click="Button_Click" />
-        <Button Name="btnClose" Content="최소화" HorizontalAlignment="Left" Margin="205,460,0,-5" VerticalAlignment="Top" Width="180" Height="38" Click="Button_Click_1" IsDefault="True" FontWeight="Bold" />
+        <Button Name="btnClose" Content="최소화" HorizontalAlignment="Left" Margin="205,460,0,-5" VerticalAlignment="Top" Width="210" Height="38" Click="Button_Click_1" IsDefault="True" FontWeight="Bold" />
 
-        <TextBlock Name="tbVersion" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="205,502,0,0" Width="180" TextAlignment="Right" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" FontSize="10" Cursor="Hand" ToolTip="클릭하여 업데이트 확인" MouseLeftButtonDown="tbVersion_MouseLeftButtonDown" />
+        <TextBlock Name="tbVersion" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="205,502,0,0" Width="210" TextAlignment="Right" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" FontSize="10" Cursor="Hand" ToolTip="클릭하여 업데이트 확인" MouseLeftButtonDown="tbVersion_MouseLeftButtonDown" />
 
-        <TabControl Name="tabControl1" BorderThickness="0 1" HorizontalAlignment="Left" Height="372" Margin="0,77,0,0" VerticalAlignment="Top" Width="385" TabStripPlacement="Bottom" SelectionChanged="tabControl1_SelectionChanged">
+        <TabControl Name="tabControl1" BorderThickness="0 1" HorizontalAlignment="Left" Height="372" Margin="0,77,0,0" VerticalAlignment="Top" Width="415" TabStripPlacement="Bottom" SelectionChanged="tabControl1_SelectionChanged">
             <TabControl.Resources>
                 <Style TargetType="TabPanel">
                     <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -72,6 +73,7 @@
                     <TextBox Name="tbOpt0_1" HorizontalAlignment="Left" Height="20" Margin="315,10,0,0"  Text="" VerticalAlignment="Top" Width="34" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
                     <CheckBox Name="tbOpt0_2" Content="" HorizontalAlignment="Left" Margin="362,10,0,0" VerticalAlignment="Top" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <CheckBox Name="tbOpt0_3" Content="" HorizontalAlignment="Left" Margin="247,10,0,0" VerticalAlignment="Top" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Tag="0" />
+                    <TextBlock Name="tbOpt0_T" Text="" HorizontalAlignment="Left" Margin="386,12,0,0" VerticalAlignment="Top" Width="26" TextAlignment="Center" />
 
                     <ComboBox Name="cbOpt1" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="2,33,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
                         <ComboBox.Resources>
@@ -83,6 +85,7 @@
                     <TextBox Name="tbOpt1_1" HorizontalAlignment="Left" Height="20" Margin="315,35,0,0"  Text="" VerticalAlignment="Top" Width="34" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
                     <CheckBox Name="tbOpt1_2" Content="" HorizontalAlignment="Left" Margin="362,35,0,0" VerticalAlignment="Top" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <CheckBox Name="tbOpt1_3" Content="" HorizontalAlignment="Left" Margin="247,35,0,0" VerticalAlignment="Top" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Tag="1" />
+                    <TextBlock Name="tbOpt1_T" Text="" HorizontalAlignment="Left" Margin="386,37,0,0" VerticalAlignment="Top" Width="26" TextAlignment="Center" />
 
                     <ComboBox Name="cbOpt2" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="2,58,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
                         <ComboBox.Resources>
@@ -94,6 +97,7 @@
                     <TextBox Name="tbOpt2_1" HorizontalAlignment="Left" Height="20" Margin="315,60,0,0"  Text="" VerticalAlignment="Top" Width="34" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
                     <CheckBox Name="tbOpt2_2" Content="" HorizontalAlignment="Left" Margin="362,60,0,0" VerticalAlignment="Top" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <CheckBox Name="tbOpt2_3" Content="" HorizontalAlignment="Left" Margin="247,60,0,0" VerticalAlignment="Top" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Tag="2" />
+                    <TextBlock Name="tbOpt2_T" Text="" HorizontalAlignment="Left" Margin="386,62,0,0" VerticalAlignment="Top" Width="26" TextAlignment="Center" />
 
                     <ComboBox Name="cbOpt3" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="2,83,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
                         <ComboBox.Resources>
@@ -105,6 +109,7 @@
                     <TextBox Name="tbOpt3_1" HorizontalAlignment="Left" Height="20" Margin="315,85,0,0"  Text="" VerticalAlignment="Top" Width="34" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
                     <CheckBox Name="tbOpt3_2" Content="" HorizontalAlignment="Left" Margin="362,85,0,0" VerticalAlignment="Top" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <CheckBox Name="tbOpt3_3" Content="" HorizontalAlignment="Left" Margin="247,85,0,0" VerticalAlignment="Top" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Tag="3" />
+                    <TextBlock Name="tbOpt3_T" Text="" HorizontalAlignment="Left" Margin="386,87,0,0" VerticalAlignment="Top" Width="26" TextAlignment="Center" />
 
                     <ComboBox Name="cbOpt4" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="2,108,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
                         <ComboBox.Resources>
@@ -116,6 +121,7 @@
                     <TextBox Name="tbOpt4_1" HorizontalAlignment="Left" Height="20" Margin="315,110,0,0"  Text="" VerticalAlignment="Top" Width="34" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
                     <CheckBox Name="tbOpt4_2" Content="" HorizontalAlignment="Left" Margin="362,110,0,0" VerticalAlignment="Top" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <CheckBox Name="tbOpt4_3" Content="" HorizontalAlignment="Left" Margin="247,110,0,0" VerticalAlignment="Top" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Tag="4" />
+                    <TextBlock Name="tbOpt4_T" Text="" HorizontalAlignment="Left" Margin="386,112,0,0" VerticalAlignment="Top" Width="26" TextAlignment="Center" />
 
                     <ComboBox Name="cbOpt5" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="2,133,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
                         <ComboBox.Resources>
@@ -127,6 +133,7 @@
                     <TextBox Name="tbOpt5_1" HorizontalAlignment="Left" Height="20" Margin="315,135,0,0"  Text="" VerticalAlignment="Top" Width="34" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
                     <CheckBox Name="tbOpt5_2" Content="" HorizontalAlignment="Left" Margin="362,135,0,0" VerticalAlignment="Top" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <CheckBox Name="tbOpt5_3" Content="" HorizontalAlignment="Left" Margin="247,135,0,0" VerticalAlignment="Top" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Tag="5" />
+                    <TextBlock Name="tbOpt5_T" Text="" HorizontalAlignment="Left" Margin="386,137,0,0" VerticalAlignment="Top" Width="26" TextAlignment="Center" />
 
                     <ComboBox Name="cbOpt6" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="2,158,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
                         <ComboBox.Resources>
@@ -138,6 +145,7 @@
                     <TextBox Name="tbOpt6_1" HorizontalAlignment="Left" Height="20" Margin="315,160,0,0"  Text="" VerticalAlignment="Top" Width="34" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
                     <CheckBox Name="tbOpt6_2" Content="" HorizontalAlignment="Left" Margin="362,160,0,0" VerticalAlignment="Top" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <CheckBox Name="tbOpt6_3" Content="" HorizontalAlignment="Left" Margin="247,160,0,0" VerticalAlignment="Top" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Tag="6" />
+                    <TextBlock Name="tbOpt6_T" Text="" HorizontalAlignment="Left" Margin="386,162,0,0" VerticalAlignment="Top" Width="26" TextAlignment="Center" />
 
                     <ComboBox Name="cbOpt7" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="2,183,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
                         <ComboBox.Resources>
@@ -149,6 +157,7 @@
                     <TextBox Name="tbOpt7_1" HorizontalAlignment="Left" Height="20" Margin="315,185,0,0"  Text="" VerticalAlignment="Top" Width="34" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
                     <CheckBox Name="tbOpt7_2" Content="" HorizontalAlignment="Left" Margin="362,185,0,0" VerticalAlignment="Top" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <CheckBox Name="tbOpt7_3" Content="" HorizontalAlignment="Left" Margin="247,185,0,0" VerticalAlignment="Top" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Tag="7" />
+                    <TextBlock Name="tbOpt7_T" Text="" HorizontalAlignment="Left" Margin="386,187,0,0" VerticalAlignment="Top" Width="26" TextAlignment="Center" />
 
                     <ComboBox Name="cbOpt8" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="2,208,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
                         <ComboBox.Resources>
@@ -160,6 +169,7 @@
                     <TextBox Name="tbOpt8_1" HorizontalAlignment="Left" Height="20" Margin="315,210,0,0"  Text="" VerticalAlignment="Top" Width="34" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
                     <CheckBox Name="tbOpt8_2" Content="" HorizontalAlignment="Left" Margin="362,210,0,0" VerticalAlignment="Top" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <CheckBox Name="tbOpt8_3" Content="" HorizontalAlignment="Left" Margin="247,210,0,0" VerticalAlignment="Top" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Tag="8" />
+                    <TextBlock Name="tbOpt8_T" Text="" HorizontalAlignment="Left" Margin="386,212,0,0" VerticalAlignment="Top" Width="26" TextAlignment="Center" />
 
                     <ComboBox Name="cbOpt9" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="2,233,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
                         <ComboBox.Resources>
@@ -171,8 +181,9 @@
                     <TextBox Name="tbOpt9_1" HorizontalAlignment="Left" Height="20" Margin="315,235,0,0"  Text="" VerticalAlignment="Top" Width="34" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
                     <CheckBox Name="tbOpt9_2" Content="" HorizontalAlignment="Left" Margin="362,235,0,0" VerticalAlignment="Top" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <CheckBox Name="tbOpt9_3" Content="" HorizontalAlignment="Left" Margin="247,235,0,0" VerticalAlignment="Top" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Tag="9" />
+                    <TextBlock Name="tbOpt9_T" Text="" HorizontalAlignment="Left" Margin="386,237,0,0" VerticalAlignment="Top" Width="26" TextAlignment="Center" />
 
-                    <Border BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" BorderThickness="1" HorizontalAlignment="Left" Height="1" Margin="0,265,0,0" VerticalAlignment="Top" Width="385" RenderTransformOrigin="0.5,0.5" />
+                    <Border BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" BorderThickness="1" HorizontalAlignment="Left" Height="1" Margin="0,265,0,0" VerticalAlignment="Top" Width="415" RenderTransformOrigin="0.5,0.5" />
 
                     <CheckBox Name="ckLv" Content="레벨" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" HorizontalAlignment="Left" Margin="2,275,0,0" VerticalAlignment="Top" Width="50" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
                     <TextBox Name="tbLvMin" HorizontalAlignment="Left" Height="18" Margin="3,294,0,0" Text="" VerticalAlignment="Top" Width="25" PreviewMouseLeftButtonDown="TbOpt0_0_PreviewMouseLeftButtonDown" />
@@ -230,16 +241,16 @@
                         <ComboBoxItem>전쟁군주</ComboBoxItem>
                     </ComboBox>
 
-                    <Border BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" BorderThickness="1" HorizontalAlignment="Left" Height="1" Margin="0,319,0,0" VerticalAlignment="Top" Width="385" RenderTransformOrigin="0.5,0.5" />
+                    <Border BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" BorderThickness="1" HorizontalAlignment="Left" Height="1" Margin="0,319,0,0" VerticalAlignment="Top" Width="415" RenderTransformOrigin="0.5,0.5" />
 
                     <TextBlock Name="tkPriceCount" Text="0" HorizontalAlignment="Left" Margin="4,325,0,0" VerticalAlignment="Top" />
                     <TextBlock Name="tkPriceInfo" TextAlignment="Right" Margin="5,325,5,0" Text="TextBlock" MouseEnter="TkPrice_Mouse_EnterOrLeave" MouseLeave="TkPrice_Mouse_EnterOrLeave" Cursor="Hand" MouseLeftButtonDown="TkPrice_MouseLeftButtonDown" MouseRightButtonDown="tkPriceInfo_MouseRightButtonDown" />
 
-                    <Border Name="bdDetail" BorderBrush="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" BorderThickness="0" HorizontalAlignment="Left" VerticalAlignment="Top" Width="380" Height="262" Visibility="Hidden">
+                    <Border Name="bdDetail" BorderBrush="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" BorderThickness="0" HorizontalAlignment="Left" VerticalAlignment="Top" Width="410" Height="262" Visibility="Hidden">
                         <TextBlock Name="tkDetail" TextWrapping="Wrap" Text="TextBlock" Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" Padding="5,0,5,10" />
                     </Border>
 
-                    <Border Name="bdExchange" BorderBrush="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" BorderThickness="0" Margin="0,268,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Width="380" Height="50" Visibility="Hidden">
+                    <Border Name="bdExchange" BorderBrush="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" BorderThickness="0" Margin="0,268,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Width="410" Height="50" Visibility="Hidden">
                         <Grid Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
                             <ComboBox Name="cbOrbs" HorizontalAlignment="Left" Margin="10,15,0,0" VerticalAlignment="Top" MaxDropDownHeight="282" Width="175" SelectionChanged="CbOrbs_SelectionChanged">
                             </ComboBox>
@@ -251,7 +262,7 @@
             </TabItem>
             <TabItem Header="자세히">
                 <Grid Name="gdTabItem2">
-                    <Grid Name="grPriceLayout" Margin="0" HorizontalAlignment="Left" VerticalAlignment="Top" Width="380" Height="283">
+                    <Grid Name="grPriceLayout" Margin="0" HorizontalAlignment="Left" VerticalAlignment="Top" Width="410" Height="283">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="1*"/>
                         </Grid.RowDefinitions>
@@ -269,7 +280,7 @@
                         <ComboBoxItem>80</ComboBoxItem>
                     </ComboBox>
 
-                    <Border BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" BorderThickness="1" HorizontalAlignment="Left" Height="1" Margin="0,319,0,0" VerticalAlignment="Top" Width="385" RenderTransformOrigin="0.5,0.5" />
+                    <Border BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" BorderThickness="1" HorizontalAlignment="Left" Height="1" Margin="0,319,0,0" VerticalAlignment="Top" Width="415" RenderTransformOrigin="0.5,0.5" />
                 </Grid>
             </TabItem>
         </TabControl>

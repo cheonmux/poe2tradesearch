@@ -46,9 +46,11 @@ namespace Poe2TradeSearch
             mAutoSearchTimer.Tick += new EventHandler(AutoSearchTimer_Tick);
             tkPriceInfo.Tag = tkPriceInfo.Text = "시세를 검색하려면 클릭해주세요";
 
-            // 시세 창에 마우스가 올라가 있으면 자동 숨김 보류
-            this.MouseEnter += (s, ev) => mMouseOverWindow = true;
-            this.MouseLeave += (s, ev) => { mMouseOverWindow = false; RestartHideTimer(); };
+            // 시세 창에 마우스가 올라가 있으면 자동 숨김 보류.
+            // hover 판정은 상태변수 대신 WPF 실시간 속성 this.IsMouseOver를 사용한다(아래 RestartHideTimer/HideTimer_Tick).
+            // → MouseEnter/Leave 이벤트 누락으로 보류 상태가 박히는(stuck) 버그를 원천 차단.
+            // MouseLeave에서는 보류가 풀렸으니 타이머만 재시작.
+            this.MouseLeave += (s, ev) => RestartHideTimer();
 
             // 입력 필드 편집(키보드 포커스) 중에는 숨김 보류. 포커스가 창 밖으로 나가면 타이머 재시작.
             this.IsKeyboardFocusWithinChanged += (s, ev) =>
@@ -72,6 +74,9 @@ namespace Poe2TradeSearch
 
             // 저장된 창 위치 복원 (없으면 XAML 기본값 30,30 유지)
             RestoreWindowPosition();
+
+            // 저장된 UI 배율(글자 크기) 적용
+            ApplyUiScale();
 
             string outString = "";
 
@@ -541,7 +546,7 @@ namespace Poe2TradeSearch
 
             int currentHideDelay = mConfigData.Options.HideDelay;
 
-            WinSetting dlg = new WinSetting(useAutoClip, currentKeycode, currentCtrl, currentHideDelay, mConfigData.Options.League, mConfigData.Options.UseCtrlWheel);
+            WinSetting dlg = new WinSetting(useAutoClip, currentKeycode, currentCtrl, currentHideDelay, mConfigData.Options.League, mConfigData.Options.UseCtrlWheel, mConfigData.Options.UiScale);
             dlg.Owner = this;
 
             if (dlg.ShowDialog() == true)
@@ -579,8 +584,21 @@ namespace Poe2TradeSearch
                     }
                 }
 
+                mConfigData.Options.UiScale = dlg.UiScale;
+                ApplyUiScale();
+
                 SaveConfig();
             }
+        }
+
+        // UI 배율 적용: 루트 Grid에 ScaleTransform → 레이아웃 통째 비례 확대(어긋남 없음).
+        // SizeToContent="WidthAndHeight"라 창 크기도 자동 반영.
+        private void ApplyUiScale()
+        {
+            double scale = mConfigData.Options.UiScale;
+            if (scale <= 0) scale = 1.0;
+            if (rootGrid != null)
+                rootGrid.LayoutTransform = new System.Windows.Media.ScaleTransform(scale, scale);
         }
 
         private void ApplyShortcutSetting(bool useAutoClip, int keycode, bool useCtrl)

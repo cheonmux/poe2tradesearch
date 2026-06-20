@@ -128,6 +128,10 @@ namespace Poe2TradeSearch
 
             [DataMember(Name = "use_ctrl_wheel")]
             internal bool UseCtrlWheel = false;
+
+            // UI 배율(글자 크기). 1.0=100%, 1.15, 1.3, 1.5. ScaleTransform으로 전체 확대.
+            [DataMember(Name = "ui_scale")]
+            internal double UiScale = 1.0;
         }
 
         [DataContract(Name = "shortcuts")]

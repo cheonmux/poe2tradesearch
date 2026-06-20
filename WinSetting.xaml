@@ -21,6 +21,8 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 섹션 제목 -->
@@ -70,11 +72,20 @@
             <ComboBoxItem Content="Hardcore"/>
         </ComboBox>
 
+        <!-- 글자 크기(UI 배율) 섹션 -->
+        <TextBlock Grid.Row="11" Text="글자 크기" FontWeight="Bold" Margin="0,10,0,10"/>
+        <ComboBox Grid.Row="12" Name="cbUiScale" Width="200" Height="26" HorizontalAlignment="Left" Margin="0,0,0,8">
+            <ComboBoxItem Content="100% (기본)" Tag="1.0"/>
+            <ComboBoxItem Content="115%" Tag="1.15"/>
+            <ComboBoxItem Content="130%" Tag="1.3"/>
+            <ComboBoxItem Content="150%" Tag="1.5"/>
+        </ComboBox>
+
         <!-- 구분선 -->
-        <Separator Grid.Row="11" Margin="0,4,0,0"/>
+        <Separator Grid.Row="13" Margin="0,4,0,0"/>
 
         <!-- 확인/취소 버튼 -->
-        <StackPanel Grid.Row="12" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+        <StackPanel Grid.Row="14" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
             <Button Name="btnOk" Content="확인" Width="72" Height="26" Margin="0,0,8,0"
                     Click="btnOk_Click"/>
             <Button Name="btnCancel" Content="취소" Width="72" Height="26"

@@ -85,6 +85,7 @@ namespace Poe2TradeSearch
                 ((TextBox)this.FindName("tbOpt" + i + "_1")).Text = "";
                 ((CheckBox)this.FindName("tbOpt" + i + "_2")).IsEnabled = true;
                 ((CheckBox)this.FindName("tbOpt" + i + "_2")).IsChecked = false;
+                ((TextBlock)this.FindName("tbOpt" + i + "_T")).Text = ""; // 등급 컬럼 초기화
                 ((CheckBox)this.FindName("tbOpt" + i + "_3")).IsChecked = false;
                 ((CheckBox)this.FindName("tbOpt" + i + "_3")).Visibility = Visibility.Hidden;
                 SetFilterObjectColor(i, SystemColors.ActiveBorderBrush);
@@ -201,6 +202,7 @@ namespace Poe2TradeSearch
                     item_rarity = rarity != null ? rarity.Text[0] : item_rarity;
 
                     int k = 0, baki = 0;
+                    string currentTier = "";
                     double attackSpeedIncr = 0, PhysicalDamageIncr = 0;
                     bool is_prophecy = false;
                     int prefixCount = 0, suffixCount = 0;
@@ -220,6 +222,7 @@ namespace Poe2TradeSearch
 
                     for (int i = 1; i < asData.Length; i++)
                     {
+                        currentTier = ""; // Reset tier for each section
                         asOpt = asData[i].Trim().Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
 
                         // POE2: 같은 섹션에 메타정보+옵션이 함께 있을 수 있으므로 먼저 전체 스캔
@@ -243,6 +246,17 @@ namespace Poe2TradeSearch
                                 if (hdr == "{ 향상 }") currentSectionType = "enchant";
                                 else if (hdr.StartsWith("{ 고정 속성 부여")) currentSectionType = "implicit";
                                 else currentSectionType = "explicit"; // 고유/접두어/접미어 등 나머지는 모두 explicit
+
+                                // Extract tier if present (e.g. "(등급: 6)" or "(Tier: 6)")
+                                Match mTier = Regex.Match(hdr, @"\((?:등급|Tier):\s*(\d+)\)", RegexOptions.IgnoreCase);
+                                if (mTier.Success)
+                                {
+                                    currentTier = "T" + mTier.Groups[1].Value;
+                                }
+                                else
+                                {
+                                    currentTier = "";
+                                }
                                 continue;
                             }
                             if (asOpt[j].IndexOf("(rune)") > -1) continue;
@@ -329,12 +343,13 @@ namespace Poe2TradeSearch
                                         if (entries.Length > 1)
                                         {
                                             // POE2: 로컬(특정) stat 판별 — 무기/방어구는 (특정), 장신구(accessory)는 글로벌.
-                                            // 무기·방어구에 붙은 방어/공속 등은 아이템 자신의 수치라 항상 (특정).
-                                            bool useLocal = cate_ids[0] != "accessory";
+                                            // lParticular value: 1=무기 전용, 2=방어구 전용. 카테고리와 일치할 때만 (특정) 적용.
+                                            // (예: 투구=방어구는 value 2만 허용. 무기 전용(value 1)이 방어구에 잘못 삽입되던 버그 수정.)
+                                            byte wantParticular = cate_ids[0] == "weapon" ? (byte)1 : cate_ids[0] == "armour" ? (byte)2 : (byte)0;
                                             DataEntrie[] entries_tmp = Array.FindAll(entries, x => {
                                                 string[] idParts = x.Id.Split('.');
-                                                if (idParts.Length != 2 || !RS.lParticular.ContainsKey(idParts[1])) return false;
-                                                return useLocal;
+                                                if (idParts.Length != 2 || !RS.lParticular.TryGetValue(idParts[1], out byte pv)) return false;
+                                                return wantParticular != 0 && pv == wantParticular;
                                             });
                                             if (entries_tmp.Length > 0)
                                             {
@@ -347,13 +362,15 @@ namespace Poe2TradeSearch
                                             // 1개만 매칭됐을 때: 글로벌 버전이고, 무기/방어구면 같은 그룹의 (특정) 버전으로 교체.
                                             // (장신구 accessory는 글로벌 그대로 사용)
                                             string[] matchedIdParts = entries[0].Id.Split('.');
-                                            if (matchedIdParts.Length == 2 && !RS.lParticular.ContainsKey(matchedIdParts[1]) && cate_ids[0] != "accessory")
+                                            byte wantParticular = cate_ids[0] == "weapon" ? (byte)1 : cate_ids[0] == "armour" ? (byte)2 : (byte)0;
+                                            if (matchedIdParts.Length == 2 && !RS.lParticular.ContainsKey(matchedIdParts[1]) && wantParticular != 0)
                                             {
                                                 string localText = entries[0].Text + "(특정)";
                                                 DataEntrie[] entries_tmp = Array.FindAll(data_result.Entries, x => {
                                                     string[] idParts = x.Id.Split('.');
-                                                    if (x.Text != localText || idParts.Length != 2 || !RS.lParticular.ContainsKey(idParts[1])) return false;
-                                                    return true;
+                                                    // 카테고리에 맞는 특정 stat(value 일치)만 교체 대상으로.
+                                                    if (x.Text != localText || idParts.Length != 2 || !RS.lParticular.TryGetValue(idParts[1], out byte pv)) return false;
+                                                    return pv == wantParticular;
                                                 });
                                                 if (entries_tmp.Length > 0)
                                                 {
@@ -501,6 +518,10 @@ namespace Poe2TradeSearch
                                         {
                                             string[] split = filter.Id.Split('.');
                                             bool defMaxPosition = split.Length == 2 && RS.lDefaultPosition.ContainsKey(split[1]);
+                                            // 단일값 위치 결정: 추출값은 항상 min에 들어옴(라인 429). 아래 조건이면 max로 옮김.
+                                            // 기본(defMaxPosition=false) stat은 음수값을 max(이하)로 보냄 — "이 페널티 이하" 검색 의도.
+                                            // 즉 음수 stat은 자동으로 min이 아니라 max 필드에 들어감. 의도적 설계(버그 아님).
+                                            // 누락된 stat은 RS.lDefaultPosition 등록으로 양수→max 전환 가능. 상세: docs/negative-value-min-max.md
                                             if ((defMaxPosition && min > 0 && max == 99999) || (!defMaxPosition && min < 0 && max == 99999))
                                             {
                                                 max = min;
@@ -510,6 +531,8 @@ namespace Poe2TradeSearch
 
                                         ((TextBox)this.FindName("tbOpt" + k + "_0")).Text = min == 99999 ? "" : min.ToString();
                                         ((TextBox)this.FindName("tbOpt" + k + "_1")).Text = max == 99999 ? "" : max.ToString();
+                                        // 등급(Tier) 표시: 체크박스(_2) 오른쪽 별도 컬럼 TextBlock(_T)에.
+                                        ((TextBlock)this.FindName("tbOpt" + k + "_T")).Text = currentTier;
 
                                         Itemfilter itemfilter = new Itemfilter
                                         {
@@ -538,11 +561,11 @@ namespace Poe2TradeSearch
                         }
                     }
 
-                    // 희귀 아이템: 빈 접두어/접미어 슬롯 자동 추가 (지도 제외)
-                    // 일반 장비는 최대 3개씩, 주얼은 최대 2개씩.
-                    if (rarity_id == "rare" && cate_ids[0] != "map" && k < 10)
+                    // 희귀/마법 아이템: 빈 접두어/접미어 슬롯 자동 추가 (지도 제외)
+                    // 희귀 장비는 최대 3개씩, 주얼은 최대 2개씩. 마법은 접두/접미 각 1개.
+                    if ((rarity_id == "rare" || rarity_id == "magic") && cate_ids[0] != "map" && k < 10)
                     {
-                        int maxAffix = cate_ids[0] == "jewel" ? 2 : 3;
+                        int maxAffix = rarity_id == "magic" ? 1 : (cate_ids[0] == "jewel" ? 2 : 3);
                         int emptyPrefix = Math.Max(0, maxAffix - prefixCount);
                         int emptySuffix = Math.Max(0, maxAffix - suffixCount);
 
@@ -1693,8 +1716,12 @@ private ParserDictionary GetExchangeItem(string id)
             mHideTimer.Stop();
             // HideDelay <= 0 이면 자동 숨김 비활성
             if (mConfigData.Options.HideDelay <= 0) return;
-            // 시세 창이 떠 있고, 마우스가 창 위에 없고, 키보드 입력 중(입력 필드 편집)이 아닐 때만 카운트 시작
-            if (this.Visibility == Visibility.Visible && !mMouseOverWindow && !this.IsKeyboardFocusWithin)
+            // 시세 창이 떠 있고, 마우스가 창 위에 없고, 키보드 입력 중(입력 필드 편집)이 아닐 때만 카운트 시작.
+            // hover 판정은 실시간 속성 this.IsMouseOver 사용(상태변수 stuck 방지).
+            bool canStart = this.Visibility == Visibility.Visible && !this.IsMouseOver && !this.IsKeyboardFocusWithin;
+            // [HIDE-DEBUG] 재시작 게이트 상태 확인용 (해결 후 제거)
+            System.Diagnostics.Debug.WriteLine($"[HIDE-DEBUG] RestartHideTimer visible={this.Visibility == Visibility.Visible} mouseOver={this.IsMouseOver} kbFocus={this.IsKeyboardFocusWithin} => start={canStart}");
+            if (canStart)
                 mHideTimer.Start();
         }
 
@@ -1715,7 +1742,10 @@ private ParserDictionary GetExchangeItem(string id)
         private void HideTimer_Tick(object sender, EventArgs e)
         {
             mHideTimer.Stop();
-            if (mMouseOverWindow) return; // hover 중이면 숨기지 않음 (MouseLeave 시 재시작)
+            // [HIDE-DEBUG] Tick 시점 상태 확인용 (해결 후 제거)
+            System.Diagnostics.Debug.WriteLine($"[HIDE-DEBUG] HideTimer_Tick mouseOver={this.IsMouseOver} kbFocus={this.IsKeyboardFocusWithin} visible={this.Visibility == Visibility.Visible}");
+            // hover/입력 중이면 숨기지 않음 (보류 풀리면 MouseLeave/포커스 변경에서 재시작)
+            if (this.IsMouseOver || this.IsKeyboardFocusWithin) return;
             if (this.Visibility == Visibility.Visible)
                 this.Visibility = Visibility.Hidden;
         }

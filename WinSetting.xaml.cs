@@ -11,11 +11,12 @@ namespace Poe2TradeSearch
         public int HideDelay { get; private set; }
         public string League { get; private set; }
         public bool UseCtrlWheel { get; private set; }
+        public double UiScale { get; private set; }
 
         private int _pendingKeycode = 0;
         private bool _capturing = false;
 
-        public WinSetting(bool useAutoClip, int currentKeycode, bool currentCtrl, int hideDelay, string currentLeague, bool useCtrlWheel)
+        public WinSetting(bool useAutoClip, int currentKeycode, bool currentCtrl, int hideDelay, string currentLeague, bool useCtrlWheel, double uiScale)
         {
             InitializeComponent();
             UseAutoClip = useAutoClip;
@@ -24,6 +25,7 @@ namespace Poe2TradeSearch
             HideDelay = hideDelay;
             League = currentLeague ?? "Runes of Aldur";
             UseCtrlWheel = useCtrlWheel;
+            UiScale = uiScale <= 0 ? 1.0 : uiScale;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -52,6 +54,20 @@ namespace Poe2TradeSearch
                 }
             }
             if (cbLeague.SelectedIndex < 0) cbLeague.SelectedIndex = 0;
+
+            // 글자 크기(UI 배율): Tag(문자열 실수)를 현재 값과 매칭해 선택
+            foreach (System.Windows.Controls.ComboBoxItem item in cbUiScale.Items)
+            {
+                if (double.TryParse((item.Tag ?? "").ToString(),
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double tagVal)
+                    && System.Math.Abs(tagVal - UiScale) < 0.001)
+                {
+                    cbUiScale.SelectedItem = item;
+                    break;
+                }
+            }
+            if (cbUiScale.SelectedIndex < 0) cbUiScale.SelectedIndex = 0;
         }
 
         // 숫자만 입력 허용
@@ -155,6 +171,20 @@ namespace Poe2TradeSearch
 
             League = (cbLeague.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content.ToString() ?? "Runes of Aldur";
             UseCtrlWheel = ckUseCtrlWheel.IsChecked == true;
+
+            // 글자 크기(UI 배율): 선택 항목 Tag 파싱(실패 시 1.0)
+            if ((cbUiScale.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag is object scaleTag
+                && double.TryParse(scaleTag.ToString(),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double scaleVal)
+                && scaleVal > 0)
+            {
+                UiScale = scaleVal;
+            }
+            else
+            {
+                UiScale = 1.0;
+            }
 
             DialogResult = true;
         }

@@ -7,8 +7,10 @@ obj/
 packages/
 *.log
 *.py
-CLAUDE.md
-PORTING_LOG.md
+
+# 마크다운 문서는 README.md만 추적, 나머지(docs/, 내부 문서)는 제외
+*.md
+!README.md
 
 # 배포 산출물
 PoeTradeSearch-master.zip
