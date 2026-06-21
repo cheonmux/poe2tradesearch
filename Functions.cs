@@ -148,6 +148,8 @@ namespace Poe2TradeSearch
 
         internal const int WM_DRAWCLIPBOARD = 0x0308;
         internal const int WM_CHANGECBCHAIN = 0x030D;
+        internal const int WM_SYSCOMMAND = 0x0112;
+        internal const int SC_MINIMIZE = 0xF020;
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
@@ -203,6 +205,9 @@ namespace Poe2TradeSearch
     internal static class GamePad
     {
         private const uint XINPUT_GAMEPAD_A = 0x1000;
+        private const uint XINPUT_GAMEPAD_B = 0x2000;
+        private const uint XINPUT_GAMEPAD_X = 0x4000;
+        private const uint XINPUT_GAMEPAD_Y = 0x8000;
         private const byte XINPUT_GAMEPAD_TRIGGER_THRESHOLD = 30;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -227,15 +232,22 @@ namespace Poe2TradeSearch
         [DllImport("xinput1_4.dll", EntryPoint = "#100")]
         private static extern uint XInputGetState(uint dwUserIndex, out XINPUT_STATE pState);
 
-        internal static bool IsLTplusAPressed(uint controllerIndex = 0)
+        internal static bool IsLTplusButtonPressed(string button = "A", uint controllerIndex = 0)
         {
             XINPUT_STATE state;
             if (XInputGetState(controllerIndex, out state) != 0)
                 return false;
 
-            bool ltPressed = state.Gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
-            bool aPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_A) != 0;
-            return ltPressed && aPressed;
+            bool ltPressed = state.Gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+            uint mask;
+            switch (button)
+            {
+                case "B": mask = XINPUT_GAMEPAD_B; break;
+                case "X": mask = XINPUT_GAMEPAD_X; break;
+                case "Y": mask = XINPUT_GAMEPAD_Y; break;
+                default:  mask = XINPUT_GAMEPAD_A; break;
+            }
+            return ltPressed && (state.Gamepad.wButtons & mask) != 0;
         }
 
         internal static bool IsConnected(uint controllerIndex = 0)

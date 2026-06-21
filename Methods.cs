@@ -519,10 +519,9 @@ namespace Poe2TradeSearch
                                             string[] split = filter.Id.Split('.');
                                             bool defMaxPosition = split.Length == 2 && RS.lDefaultPosition.ContainsKey(split[1]);
                                             // 단일값 위치 결정: 추출값은 항상 min에 들어옴(라인 429). 아래 조건이면 max로 옮김.
-                                            // 기본(defMaxPosition=false) stat은 음수값을 max(이하)로 보냄 — "이 페널티 이하" 검색 의도.
-                                            // 즉 음수 stat은 자동으로 min이 아니라 max 필드에 들어감. 의도적 설계(버그 아님).
-                                            // 누락된 stat은 RS.lDefaultPosition 등록으로 양수→max 전환 가능. 상세: docs/negative-value-min-max.md
-                                            if ((defMaxPosition && min > 0 && max == 99999) || (!defMaxPosition && min < 0 && max == 99999))
+                                            // 음수값도 min에 그대로 둔다(사용자 확인): "이 값 이상" = 음수 페널티 검색에 더 정확.
+                                            // lDefaultPosition 등록 stat만 양수→max(이하)로 전환. 상세: docs/negative-value-min-max.md
+                                            if (defMaxPosition && min > 0 && max == 99999)
                                             {
                                                 max = min;
                                                 min = 99999;
@@ -1777,6 +1776,13 @@ private ParserDictionary GetExchangeItem(string id)
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
+            if (msg == Native.WM_SYSCOMMAND && (wParam.ToInt32() & 0xFFF0) == Native.SC_MINIMIZE)
+            {
+                Hide();
+                handled = true;
+                return IntPtr.Zero;
+            }
+
             if (msg == Native.WM_DRAWCLIPBOARD)
             {
                 if (!mPausedHotKey && !mClipboardBlock)

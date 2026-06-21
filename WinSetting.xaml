@@ -23,6 +23,12 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 섹션 제목 -->
@@ -81,11 +87,50 @@
             <ComboBoxItem Content="150%" Tag="1.5"/>
         </ComboBox>
 
+        <!-- 게임패드 섹션 -->
+        <TextBlock Grid.Row="13" Text="게임패드 (엑박패드 기준)" FontWeight="Bold" Margin="0,10,0,10"/>
+        <StackPanel Grid.Row="14" Orientation="Horizontal" Margin="0,0,0,8">
+            <CheckBox Name="ckGamePadEnabled" Content="RT + " VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <ComboBox Name="cbGamePadButton" Width="60" Height="26" IsEnabled="False">
+                <ComboBoxItem Content="A"/>
+                <ComboBoxItem Content="X"/>
+                <ComboBoxItem Content="Y"/>
+                <ComboBoxItem Content="B"/>
+            </ComboBox>
+            <TextBlock Text=" 로 시세 검색" VerticalAlignment="Center" Margin="4,0,0,0"/>
+        </StackPanel>
+
+        <!-- 인게임 단축키 섹션 -->
+        <TextBlock Grid.Row="15" Text="인게임 단축키" FontWeight="Bold" Margin="0,10,0,10"/>
+        <Grid Grid.Row="16" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="은신처 이동:" VerticalAlignment="Center"/>
+            <ComboBox Grid.Row="0" Grid.Column="1" Name="cbHideoutKey" Width="80" Height="26"/>
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="남은 몬스터 수:" VerticalAlignment="Center"/>
+            <ComboBox Grid.Row="2" Grid.Column="1" Name="cbRemainingKey" Width="80" Height="26"/>
+        </Grid>
+
+        <!-- 배경색 섹션 -->
+        <TextBlock Grid.Row="17" Text="배경색" FontWeight="Bold" Margin="0,10,0,10"/>
+        <StackPanel Grid.Row="18" Orientation="Horizontal" Margin="0,0,0,8">
+            <Border Name="bdColorPreview" Width="24" Height="24" CornerRadius="3" Margin="0,0,8,0" BorderBrush="#AAAAAA" BorderThickness="1"/>
+            <TextBox Name="tbBgColor" Width="80" Height="24" VerticalContentAlignment="Center" IsReadOnly="True"/>
+            <Button Name="btnPickColor" Content="색상 선택..." Width="80" Height="24" Margin="8,0,0,0" Click="btnPickColor_Click"/>
+        </StackPanel>
+
         <!-- 구분선 -->
-        <Separator Grid.Row="13" Margin="0,4,0,0"/>
+        <Separator Grid.Row="19" Margin="0,4,0,0"/>
 
         <!-- 확인/취소 버튼 -->
-        <StackPanel Grid.Row="14" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+        <StackPanel Grid.Row="20" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
             <Button Name="btnOk" Content="확인" Width="72" Height="26" Margin="0,0,8,0"
                     Click="btnOk_Click"/>
             <Button Name="btnCancel" Content="취소" Width="72" Height="26"

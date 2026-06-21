@@ -12,11 +12,24 @@ namespace Poe2TradeSearch
         public string League { get; private set; }
         public bool UseCtrlWheel { get; private set; }
         public double UiScale { get; private set; }
+        public bool GamePadEnabled { get; private set; }
+        public string GamePadButton { get; private set; }
+        public int HideoutKeycode { get; private set; }
+        public int RemainingKeycode { get; private set; }
+        public string BackgroundColor { get; private set; }
 
         private int _pendingKeycode = 0;
         private bool _capturing = false;
 
-        public WinSetting(bool useAutoClip, int currentKeycode, bool currentCtrl, int hideDelay, string currentLeague, bool useCtrlWheel, double uiScale)
+        private static readonly (string Label, int Keycode)[] FKeyOptions = new[]
+        {
+            ("없음", 0),
+            ("F1",  112), ("F2",  113), ("F3",  114), ("F4",  115),
+            ("F5",  116), ("F6",  117), ("F7",  118), ("F8",  119),
+            ("F9",  120), ("F10", 121), ("F11", 122), ("F12", 123),
+        };
+
+        public WinSetting(bool useAutoClip, int currentKeycode, bool currentCtrl, int hideDelay, string currentLeague, bool useCtrlWheel, double uiScale, bool gamePadEnabled, string gamePadButton, int hideoutKeycode, int remainingKeycode, string backgroundColor)
         {
             InitializeComponent();
             UseAutoClip = useAutoClip;
@@ -26,6 +39,11 @@ namespace Poe2TradeSearch
             League = currentLeague ?? "Runes of Aldur";
             UseCtrlWheel = useCtrlWheel;
             UiScale = uiScale <= 0 ? 1.0 : uiScale;
+            GamePadEnabled = gamePadEnabled;
+            GamePadButton = string.IsNullOrEmpty(gamePadButton) ? "A" : gamePadButton;
+            HideoutKeycode = hideoutKeycode;
+            RemainingKeycode = remainingKeycode;
+            BackgroundColor = string.IsNullOrEmpty(backgroundColor) ? "#F0F0F0" : backgroundColor;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -68,6 +86,68 @@ namespace Poe2TradeSearch
                 }
             }
             if (cbUiScale.SelectedIndex < 0) cbUiScale.SelectedIndex = 0;
+
+            ckGamePadEnabled.IsChecked = GamePadEnabled;
+            cbGamePadButton.IsEnabled = GamePadEnabled;
+            ckGamePadEnabled.Checked += (s, ev) => cbGamePadButton.IsEnabled = true;
+            ckGamePadEnabled.Unchecked += (s, ev) => cbGamePadButton.IsEnabled = false;
+
+            foreach (System.Windows.Controls.ComboBoxItem item in cbGamePadButton.Items)
+            {
+                if (item.Content.ToString() == GamePadButton)
+                {
+                    cbGamePadButton.SelectedItem = item;
+                    break;
+                }
+            }
+            if (cbGamePadButton.SelectedIndex < 0) cbGamePadButton.SelectedIndex = 0;
+
+            PopulateFKeyCombo(cbHideoutKey, HideoutKeycode);
+            PopulateFKeyCombo(cbRemainingKey, RemainingKeycode);
+
+            tbBgColor.Text = BackgroundColor;
+            ApplyColorPreview(BackgroundColor);
+        }
+
+        private void btnPickColor_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new System.Windows.Forms.ColorDialog();
+            dlg.Color = HexToDrawingColor(tbBgColor.Text);
+            dlg.FullOpen = true;
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                string hex = $"#{dlg.Color.R:X2}{dlg.Color.G:X2}{dlg.Color.B:X2}";
+                tbBgColor.Text = hex;
+                ApplyColorPreview(hex);
+            }
+        }
+
+        private void ApplyColorPreview(string hex)
+        {
+            try
+            {
+                var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+                bdColorPreview.Background = new System.Windows.Media.SolidColorBrush(color);
+            }
+            catch { bdColorPreview.Background = System.Windows.Media.Brushes.White; }
+        }
+
+        private System.Drawing.Color HexToDrawingColor(string hex)
+        {
+            try { return System.Drawing.ColorTranslator.FromHtml(hex); }
+            catch { return System.Drawing.Color.FromArgb(240, 240, 240); }
+        }
+
+        private void PopulateFKeyCombo(System.Windows.Controls.ComboBox cb, int selectedKeycode)
+        {
+            cb.Items.Clear();
+            int selectIdx = 0;
+            for (int i = 0; i < FKeyOptions.Length; i++)
+            {
+                cb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = FKeyOptions[i].Label, Tag = FKeyOptions[i].Keycode });
+                if (FKeyOptions[i].Keycode == selectedKeycode) selectIdx = i;
+            }
+            cb.SelectedIndex = selectIdx;
         }
 
         // 숫자만 입력 허용
@@ -185,6 +265,14 @@ namespace Poe2TradeSearch
             {
                 UiScale = 1.0;
             }
+
+            GamePadEnabled = ckGamePadEnabled.IsChecked == true;
+            GamePadButton = (cbGamePadButton.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content.ToString() ?? "A";
+
+            HideoutKeycode = (int?)((cbHideoutKey.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag) ?? 0;
+            RemainingKeycode = (int?)((cbRemainingKey.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag) ?? 0;
+
+            BackgroundColor = tbBgColor.Text;
 
             DialogResult = true;
         }

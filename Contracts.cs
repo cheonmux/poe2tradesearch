@@ -136,6 +136,15 @@ namespace Poe2TradeSearch
             // 다크모드 여부. true=다크(POE 스타일), false=라이트.
             [DataMember(Name = "dark_mode")]
             internal bool DarkMode = false;
+
+            [DataMember(Name = "gamepad_enabled")]
+            internal bool GamePadEnabled = false;
+
+            [DataMember(Name = "gamepad_button")]
+            internal string GamePadButton = "A";
+
+            [DataMember(Name = "background_color")]
+            internal string BackgroundColor = "#F0F0F0";
         }
 
         [DataContract(Name = "shortcuts")]

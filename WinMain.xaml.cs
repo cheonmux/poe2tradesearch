@@ -78,6 +78,9 @@ namespace Poe2TradeSearch
             // 저장된 UI 배율(글자 크기) 적용
             ApplyUiScale();
 
+            // 저장된 배경색 적용
+            ApplyBackgroundColor();
+
             string outString = "";
 
             if (!LoadData(out outString))
@@ -546,7 +549,16 @@ namespace Poe2TradeSearch
 
             int currentHideDelay = mConfigData.Options.HideDelay;
 
-            WinSetting dlg = new WinSetting(useAutoClip, currentKeycode, currentCtrl, currentHideDelay, mConfigData.Options.League, mConfigData.Options.UseCtrlWheel, mConfigData.Options.UiScale);
+            int hideoutKeycode = 0, remainingKeycode = 0;
+            if (mConfigData.Shortcuts != null)
+            {
+                var hideoutShortcut = System.Array.Find(mConfigData.Shortcuts, x => (x.Value ?? "").ToLower().Contains("/hideout"));
+                var remainingShortcut = System.Array.Find(mConfigData.Shortcuts, x => (x.Value ?? "").ToLower().Contains("/remaining"));
+                hideoutKeycode = hideoutShortcut?.Keycode ?? 0;
+                remainingKeycode = remainingShortcut?.Keycode ?? 0;
+            }
+
+            WinSetting dlg = new WinSetting(useAutoClip, currentKeycode, currentCtrl, currentHideDelay, mConfigData.Options.League, mConfigData.Options.UseCtrlWheel, mConfigData.Options.UiScale, mConfigData.Options.GamePadEnabled, mConfigData.Options.GamePadButton, hideoutKeycode, remainingKeycode, mConfigData.Options.BackgroundColor);
             dlg.Owner = this;
 
             if (dlg.ShowDialog() == true)
@@ -587,6 +599,22 @@ namespace Poe2TradeSearch
                 mConfigData.Options.UiScale = dlg.UiScale;
                 ApplyUiScale();
 
+                mConfigData.Options.GamePadEnabled = dlg.GamePadEnabled;
+                mConfigData.Options.GamePadButton = dlg.GamePadButton;
+
+                mConfigData.Options.BackgroundColor = dlg.BackgroundColor;
+                ApplyBackgroundColor();
+
+                if (mConfigData.Shortcuts != null)
+                {
+                    var hideoutShortcut = System.Array.Find(mConfigData.Shortcuts, x => (x.Value ?? "").ToLower().Contains("/hideout"));
+                    var remainingShortcut = System.Array.Find(mConfigData.Shortcuts, x => (x.Value ?? "").ToLower().Contains("/remaining"));
+                    if (hideoutShortcut != null) hideoutShortcut.Keycode = dlg.HideoutKeycode;
+                    if (remainingShortcut != null) remainingShortcut.Keycode = dlg.RemainingKeycode;
+                    RemoveRegisterHotKey();
+                    InstallRegisterHotKey();
+                }
+
                 SaveConfig();
             }
         }
@@ -599,6 +627,43 @@ namespace Poe2TradeSearch
             if (scale <= 0) scale = 1.0;
             if (rootGrid != null)
                 rootGrid.LayoutTransform = new System.Windows.Media.ScaleTransform(scale, scale);
+        }
+
+        private void ApplyBackgroundColor()
+        {
+            try
+            {
+                string hex = mConfigData.Options.BackgroundColor;
+                if (string.IsNullOrEmpty(hex)) hex = "#F0F0F0";
+                var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+                var brush = new System.Windows.Media.SolidColorBrush(color);
+                this.Background = brush;
+                if (tabControl1 != null) tabControl1.Background = brush;
+                foreach (var tb in FindVisualChildren<System.Windows.Controls.TextBox>(tabControl1))
+                {
+                    if (tb.IsReadOnly) tb.Background = brush;
+                }
+                if (tkDetail != null) tkDetail.Background = brush;
+                if (liPrice != null) liPrice.Background = brush;
+                if (bdExchange != null)
+                {
+                    var grid = FindVisualChildren<System.Windows.Controls.Grid>(bdExchange);
+                    foreach (var g in grid) { g.Background = brush; break; }
+                }
+            }
+            catch { }
+        }
+
+        private static System.Collections.Generic.IEnumerable<T> FindVisualChildren<T>(System.Windows.DependencyObject parent) where T : System.Windows.DependencyObject
+        {
+            if (parent == null) yield break;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) yield return t;
+                foreach (var desc in FindVisualChildren<T>(child)) yield return desc;
+            }
         }
 
         private void ApplyShortcutSetting(bool useAutoClip, int keycode, bool useCtrl)
@@ -726,7 +791,7 @@ namespace Poe2TradeSearch
             {
                 try
                 {
-                    bool pressed = GamePad.IsLTplusAPressed();
+                    bool pressed = mConfigData.Options.GamePadEnabled && GamePad.IsLTplusButtonPressed(mConfigData.Options.GamePadButton);
 
                     if (pressed && !mGamePadLTAprevPressed)
                     {
