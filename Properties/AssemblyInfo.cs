@@ -49,7 +49,7 @@ using System.Windows;
 // 모든 값을 지정하거나 아래와 같이 '*'를 사용하여 빌드 번호 및 수정 번호를
 // 기본값으로 할 수 있습니다.
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.5.2.0")]
-[assembly: AssemblyFileVersion("0.5.2.0")]
+[assembly: AssemblyVersion("0.5.4.0")]
+[assembly: AssemblyFileVersion("0.5.4.0")]
 // 표시/관리용 버전은 3단위로 유지 (Assembly/File 버전은 .NET이 4파트를 강제하므로 내부용).
-[assembly: AssemblyInformationalVersion("0.5.2")]
+[assembly: AssemblyInformationalVersion("0.5.4")]
