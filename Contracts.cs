@@ -132,6 +132,10 @@ namespace Poe2TradeSearch
             // UI 배율(글자 크기). 1.0=100%, 1.15, 1.3, 1.5. ScaleTransform으로 전체 확대.
             [DataMember(Name = "ui_scale")]
             internal double UiScale = 1.0;
+
+            // 다크모드 여부. true=다크(POE 스타일), false=라이트.
+            [DataMember(Name = "dark_mode")]
+            internal bool DarkMode = false;
         }
 
         [DataContract(Name = "shortcuts")]
