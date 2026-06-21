@@ -81,14 +81,18 @@ namespace Poe2TradeSearch
         private void SaveConfig()
         {
 #if DEBUG
-            string path = System.IO.Path.GetFullPath(@"..\..\") + "_POE_Data\\";
+            string configPath = System.IO.Path.GetFullPath(@"..\..\") + "_POE_Data\\";
 #else
-            string path = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) + "\\data\\";
+            // 사용자 설정은 %APPDATA%\Poe2TradeSearch\ 에 저장 (Setting()과 동일 경로).
+            string configPath = System.IO.Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData),
+                "Poe2TradeSearch") + "\\";
+            System.IO.Directory.CreateDirectory(configPath);
 #endif
             try
             {
                 string json = Json.Serialize<ConfigData>(mConfigData);
-                System.IO.File.WriteAllText(path + "Config.txt", json, System.Text.Encoding.UTF8);
+                System.IO.File.WriteAllText(configPath + "Config.txt", json, System.Text.Encoding.UTF8);
             }
             catch (Exception ex)
             {
@@ -100,19 +104,50 @@ namespace Poe2TradeSearch
         {
 #if DEBUG
             string path = System.IO.Path.GetFullPath(@"..\..\") + "_POE_Data\\";
+            string configPath = path; // Debug에서는 동일 경로 사용
 #else
+            // 동봉 데이터(Parser/Filters 등)는 exe 옆 data\ 에서 읽는다.
             string path = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) + "\\data\\";
+            // 사용자 설정(Config.txt)은 앱 위치와 무관한 %APPDATA%\Poe2TradeSearch\ 에 둔다.
+            string configPath = System.IO.Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData),
+                "Poe2TradeSearch") + "\\";
+            System.IO.Directory.CreateDirectory(configPath);
 #endif
             FileStream fs = null;
             try
             {
-                fs = new FileStream(path + "Config.txt", FileMode.Open);
-                using (StreamReader reader = new StreamReader(fs))
+                if (!File.Exists(configPath + "Config.txt"))
                 {
-                    fs = null;
-                    string json = reader.ReadToEnd();
-                    mConfigData = Json.Deserialize<ConfigData>(json);
+                    // 기존 사용자 마이그레이션: exe 옆 data\Config.txt 가 있으면 AppData로 복사.
+                    if (configPath != path && File.Exists(path + "Config.txt"))
+                    {
+                        File.Copy(path + "Config.txt", configPath + "Config.txt", false);
+                    }
                 }
+
+                if (!File.Exists(configPath + "Config.txt"))
+                {
+                    // 최초 실행: 완전한 기본 설정을 만들어 저장한다.
+                    mConfigData = ConfigData.CreateDefault();
+                    SaveConfig();
+                }
+                else
+                {
+                    fs = new FileStream(configPath + "Config.txt", FileMode.Open);
+                    using (StreamReader reader = new StreamReader(fs))
+                    {
+                        fs = null;
+                        string json = reader.ReadToEnd();
+                        mConfigData = Json.Deserialize<ConfigData>(json);
+                    }
+                }
+
+                // 역직렬화 결과 방어: 핵심 멤버가 비어 있으면 기본값으로 보정.
+                if (mConfigData == null) mConfigData = ConfigData.CreateDefault();
+                if (mConfigData.Options == null) mConfigData.Options = ConfigData.CreateDefault().Options;
+                if (mConfigData.Shortcuts == null) mConfigData.Shortcuts = ConfigData.CreateDefault().Shortcuts;
+                if (string.IsNullOrEmpty(mConfigData.Options.League)) mConfigData.Options.League = "Runes of Aldur";
 
                 if (mConfigData.Options.SearchPriceCount > 80)
                     mConfigData.Options.SearchPriceCount = 80;

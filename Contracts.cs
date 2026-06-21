@@ -74,6 +74,41 @@ namespace Poe2TradeSearch
 
             [DataMember(Name = "version")]
             internal string[] Version = null;
+
+            // Config.txt가 없을 때 사용할 완전한 기본 설정 생성.
+            // Options/Shortcuts의 모든 null 위험 멤버를 빠짐없이 채운다.
+            internal static ConfigData CreateDefault()
+            {
+                return new ConfigData
+                {
+                    Options = new ConfigOption
+                    {
+                        League = "Runes of Aldur",
+                        ServerTimeout = 5,
+                        ServerRedirect = false,
+                        SearchBeforeDay = 7,
+                        SearchPriceMin = 0,
+                        SearchPriceCount = 20,
+                        AutoSearchDelay = 30,
+                        HideDelay = 5,
+                        AutoCheckUnique = true,
+                        AutoCheckTotalres = true,
+                        AutoSelectPseudo = true,
+                        AutoSelectCorrupt = "no",
+                        AutoSelectByType = "",
+                        UiScale = 1.0,
+                        BackgroundColor = "#F0F0F0"
+                    },
+                    Shortcuts = new ConfigShortcut[]
+                    {
+                        new ConfigShortcut { Keycode = 27, Ctrl = false, Value = "{Close}" },
+                        new ConfigShortcut { Keycode = 0, Ctrl = true, Value = "{Run}" },
+                        new ConfigShortcut { Keycode = 113, Ctrl = false, Value = "{ENTER}/hideout{ENTER}" },
+                        new ConfigShortcut { Keycode = 116, Ctrl = false, Value = "{ENTER}/remaining{ENTER}" }
+                    },
+                    Version = new string[] { "0.5.1", "0.5.1.0" }
+                };
+            }
         }
 
         [DataContract(Name = "options")]

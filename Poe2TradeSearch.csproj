@@ -187,6 +187,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy /Y /E "$(ProjectDir)_POE_Data\*" "$(TargetDir)data\"</PostBuildEvent>
+    <PostBuildEvent>
+xcopy /Y /E "$(ProjectDir)_POE_Data\*" "$(TargetDir)data\"
+if exist "$(TargetDir)data\Config.txt" del "$(TargetDir)data\Config.txt"
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>
