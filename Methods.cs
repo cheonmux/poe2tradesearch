@@ -343,7 +343,10 @@ namespace Poe2TradeSearch
                                             rgx.IsMatch(x.Text) || rgx.IsMatch(Regex.Replace(x.Text, @"[+-]?[0-9]+\.[0-9]+|[+-]?[0-9]+", "#")));
 
                                         // 화살통(Quiver)은 카테고리상 armour지만 (특정) 로컬 stat이 없음 → accessory처럼 글로벌만 사용.
-                                        bool isQuiver = item_type.EndsWith("화살통") || item_type.EndsWith("Quiver");
+                                        // item_type은 고유/희귀/일반에 따라 베이스명·접두접미가 달라질 수 있어 불안정 →
+                                        // 항상 고정된 "아이템 종류"(item_category) 기준으로 판정한다.
+                                        bool isQuiver = item_category == "화살통" || item_category == "Quiver"
+                                                        || item_type.EndsWith("화살통") || item_type.EndsWith("Quiver");
                                         // 2개 이상 같은 옵션이 있을때 장비 옵션 (특정) 만 추출
                                         if (entries.Length > 1)
                                         {
@@ -351,15 +354,28 @@ namespace Poe2TradeSearch
                                             // lParticular value: 1=무기 전용, 2=방어구 전용. 카테고리와 일치할 때만 (특정) 적용.
                                             // (예: 투구=방어구는 value 2만 허용. 무기 전용(value 1)이 방어구에 잘못 삽입되던 버그 수정.)
                                             byte wantParticular = cate_ids[0] == "weapon" ? (byte)1 : (cate_ids[0] == "armour" && !isQuiver) ? (byte)2 : (byte)0;
-                                            DataEntrie[] entries_tmp = Array.FindAll(entries, x => {
-                                                string[] idParts = x.Id.Split('.');
-                                                if (idParts.Length != 2 || !RS.lParticular.TryGetValue(idParts[1], out byte pv)) return false;
-                                                return wantParticular != 0 && pv == wantParticular;
-                                            });
-                                            if (entries_tmp.Length > 0)
+                                            if (wantParticular == 0)
                                             {
-                                                local_exists = true;
-                                                entries = entries_tmp;
+                                                // 화살통/장신구 등 (특정)을 쓰면 안 되는 카테고리:
+                                                // lParticular에 든 (특정) 버전을 모두 제거하고 글로벌만 남긴다.
+                                                DataEntrie[] globals = Array.FindAll(entries, x => {
+                                                    string[] idParts = x.Id.Split('.');
+                                                    return !(idParts.Length == 2 && RS.lParticular.ContainsKey(idParts[1]));
+                                                });
+                                                if (globals.Length > 0) entries = globals;
+                                            }
+                                            else
+                                            {
+                                                DataEntrie[] entries_tmp = Array.FindAll(entries, x => {
+                                                    string[] idParts = x.Id.Split('.');
+                                                    if (idParts.Length != 2 || !RS.lParticular.TryGetValue(idParts[1], out byte pv)) return false;
+                                                    return pv == wantParticular;
+                                                });
+                                                if (entries_tmp.Length > 0)
+                                                {
+                                                    local_exists = true;
+                                                    entries = entries_tmp;
+                                                }
                                             }
                                         }
                                         else if (entries.Length == 1)

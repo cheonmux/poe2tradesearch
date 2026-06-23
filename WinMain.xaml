@@ -4,8 +4,29 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Poe2TradeSearch"
-        mc:Ignorable="d" ResizeMode="CanMinimize" Topmost="True" SizeToContent="WidthAndHeight" Left="30" Top="30" FontFamily="Malgun Gothic" FontSize="12" Background="#F0F0F0"
+        mc:Ignorable="d" ResizeMode="CanMinimize" Topmost="True" SizeToContent="WidthAndHeight" Left="30" Top="30" FontFamily="Malgun Gothic" FontSize="12" Background="{DynamicResource AppBackground}" Foreground="{DynamicResource AppText}"
         Title="POE2 거래소 검색" Loaded="Window_Loaded" Closing="Window_Closing" Closed="Window_Closed" Deactivated="Window_Deactivated" PreviewKeyDown="Window_PreviewKeyDown" Activated="Window_Activated">
+
+    <Window.Resources>
+        <!-- 글자색 암묵 Style — 탭 안팎 모든 요소에 적용되도록 Window 레벨에 둠.
+             Button/ComboBox는 회색 버튼면 가독성 위해 제외(검정 유지). -->
+        <Style TargetType="TextBox">
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
+            <!-- 읽기전용(옵션명)뿐 아니라 편집칸(최소/최대 등)도 배경을 칠해야
+                 밝은 글자가 흰 바탕에 묻히지 않는다. -->
+            <Setter Property="Background" Value="{DynamicResource AppBackground}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AppText}"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
+        </Style>
+    </Window.Resources>
 
     <Grid x:Name="rootGrid" Margin="25, 20, 25, 25">
         <ComboBox Name="cbRarity" xmlns:sys="clr-namespace:System;assembly=mscorlib" HorizontalAlignment="Left" Margin="5,0,0,0" VerticalAlignment="Top" Width="37" SelectedIndex="0" SelectionChanged="tkPrice_ReSet">
@@ -48,24 +69,17 @@
             </Button.Resources>
         </Button>
 
-        <TextBlock Name="tbHelpText" Text="시세 클릭시 새로고침" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" HorizontalAlignment="Left" Margin="5,430,0,0" VerticalAlignment="Top" IsEnabled="False" />
+        <TextBlock Name="tbHelpText" Text="시세 클릭시 새로고침" Foreground="{DynamicResource AppText}" HorizontalAlignment="Left" Margin="5,430,0,0" VerticalAlignment="Top" IsEnabled="False" />
 
         <Button Name="btnSearch" Content="거래소에서 찾기" HorizontalAlignment="Left" Margin="0,460,0,-5" VerticalAlignment="Top" Width="200" Height="38" Click="Button_Click" />
         <Button Name="btnClose" Content="최소화" HorizontalAlignment="Left" Margin="205,460,0,-5" VerticalAlignment="Top" Width="210" Height="38" Click="Button_Click_1" IsDefault="True" FontWeight="Bold" />
 
-        <TextBlock Name="tbVersion" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="205,502,0,0" Width="210" TextAlignment="Right" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" FontSize="10" Cursor="Hand" ToolTip="클릭하여 업데이트 확인" MouseLeftButtonDown="tbVersion_MouseLeftButtonDown" />
+        <TextBlock Name="tbVersion" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="205,502,0,0" Width="210" TextAlignment="Right" Foreground="{DynamicResource AppText}" FontSize="10" Cursor="Hand" ToolTip="클릭하여 업데이트 확인" MouseLeftButtonDown="tbVersion_MouseLeftButtonDown" />
 
-        <TabControl Name="tabControl1" Background="#F0F0F0" BorderThickness="0 1" HorizontalAlignment="Left" Height="372" Margin="0,77,0,0" VerticalAlignment="Top" Width="415" TabStripPlacement="Bottom" SelectionChanged="tabControl1_SelectionChanged">
+        <TabControl Name="tabControl1" Background="{DynamicResource AppBackground}" BorderThickness="0 1" HorizontalAlignment="Left" Height="372" Margin="0,77,0,0" VerticalAlignment="Top" Width="415" TabStripPlacement="Bottom" SelectionChanged="tabControl1_SelectionChanged">
             <TabControl.Resources>
                 <Style TargetType="TabPanel">
                     <Setter Property="HorizontalAlignment" Value="Right"/>
-                </Style>
-                <Style TargetType="TextBox">
-                    <Style.Triggers>
-                        <Trigger Property="IsReadOnly" Value="True">
-                            <Setter Property="Background" Value="#F0F0F0"/>
-                        </Trigger>
-                    </Style.Triggers>
                 </Style>
             </TabControl.Resources>
             <TabItem Header="간략히">
@@ -258,11 +272,11 @@
                     <TextBlock Name="tkPriceInfo" TextAlignment="Right" Margin="5,325,5,0" Text="TextBlock" MouseEnter="TkPrice_Mouse_EnterOrLeave" MouseLeave="TkPrice_Mouse_EnterOrLeave" Cursor="Hand" MouseLeftButtonDown="TkPrice_MouseLeftButtonDown" MouseRightButtonDown="tkPriceInfo_MouseRightButtonDown" />
 
                     <Border Name="bdDetail" BorderBrush="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" BorderThickness="0" HorizontalAlignment="Left" VerticalAlignment="Top" Width="410" Height="262" Visibility="Hidden">
-                        <TextBlock Name="tkDetail" TextWrapping="Wrap" Text="TextBlock" Background="#F0F0F0" Padding="5,0,5,10" />
+                        <TextBlock Name="tkDetail" TextWrapping="Wrap" Text="TextBlock" Background="{DynamicResource AppBackground}" Padding="5,0,5,10" />
                     </Border>
 
                     <Border Name="bdExchange" BorderBrush="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" BorderThickness="0" Margin="0,268,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Width="410" Height="50" Visibility="Hidden">
-                        <Grid Background="#F0F0F0">
+                        <Grid Background="{DynamicResource AppBackground}">
                             <ComboBox Name="cbOrbs" HorizontalAlignment="Left" Margin="10,15,0,0" VerticalAlignment="Top" MaxDropDownHeight="282" Width="175" SelectionChanged="CbOrbs_SelectionChanged">
                             </ComboBox>
                             <ComboBox Name="cbSplinters" HorizontalAlignment="Left" Margin="200,15,0,0" VerticalAlignment="Top" MaxDropDownHeight="282" Width="175" SelectionChanged="CbOrbs_SelectionChanged" Visibility="Collapsed">

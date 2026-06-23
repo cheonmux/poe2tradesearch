@@ -145,8 +145,9 @@
         </StackPanel>
 
         <!-- 글자색 섹션 (배경색과 같은 패턴) -->
-        <TextBlock Grid.Row="19" Text="글자색" FontWeight="Bold" Margin="0,10,0,10"/>
-        <StackPanel Grid.Row="20" Orientation="Horizontal" Margin="0,0,0,8">
+        <!-- TODO: 글자색 기능 일부 요소 미적용 이슈로 임시 숨김(Collapsed). 수정 후 다시 노출. -->
+        <TextBlock Grid.Row="19" Text="글자색" FontWeight="Bold" Margin="0,10,0,10" Visibility="Collapsed"/>
+        <StackPanel Grid.Row="20" Orientation="Horizontal" Margin="0,0,0,8" Visibility="Collapsed">
             <Border Name="bdTextColorPreview" Width="24" Height="24" CornerRadius="3" Margin="0,0,8,0" BorderBrush="#AAAAAA" BorderThickness="1"/>
             <TextBox Name="tbTextColor" Width="80" Height="24" VerticalContentAlignment="Center" IsReadOnly="True"/>
             <Button Name="btnPickTextColor" Content="색상 선택..." Width="80" Height="24" Margin="8,0,0,0" Click="btnPickTextColor_Click"/>

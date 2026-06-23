@@ -651,20 +651,12 @@ namespace Poe2TradeSearch
                 if (string.IsNullOrEmpty(hex)) hex = "#F0F0F0";
                 var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
                 var brush = new System.Windows.Media.SolidColorBrush(color);
-                this.Background = brush;
-                if (tabControl1 != null) tabControl1.Background = brush;
-                foreach (var tb in FindVisualChildren<System.Windows.Controls.TextBox>(tabControl1))
-                {
-                    // 입력칸(편집용)도 포함해 전부 배경색 적용 — 다크모드 시 흰 칸이 둥둥 뜨지 않도록.
-                    tb.Background = brush;
-                }
-                if (tkDetail != null) tkDetail.Background = brush;
+                brush.Freeze();
+                // DynamicResource 한 곳만 갱신하면 XAML에서 {DynamicResource AppBackground} 참조한 모든 요소가
+                // 자동 반영된다(순회 불필요, 누락 없음). 동적/미생성 요소도 나중에 바인딩으로 따라옴.
+                System.Windows.Application.Current.Resources["AppBackground"] = brush;
+                // ListBox(시세 목록)는 템플릿상 DynamicResource 미참조 → 직접 지정.
                 if (liPrice != null) liPrice.Background = brush;
-                if (bdExchange != null)
-                {
-                    var grid = FindVisualChildren<System.Windows.Controls.Grid>(bdExchange);
-                    foreach (var g in grid) { g.Background = brush; break; }
-                }
             }
             catch { }
         }
@@ -673,20 +665,16 @@ namespace Poe2TradeSearch
         {
             try
             {
-                string hex = mConfigData.Options.TextColor;
-                if (string.IsNullOrEmpty(hex)) hex = "#000000";
+                // 글자색 커스터마이징은 일부 요소 미적용 이슈로 임시 비활성(설정 UI도 숨김).
+                // 저장된 TextColor 값과 무관하게 항상 검정으로 고정 — 어두운 배경에서 흰 바탕 묻힘 등 방지.
+                // (수정 완료 시 아래 한 줄을 mConfigData.Options.TextColor 기반으로 되돌리면 복구됨)
+                string hex = "#000000";
                 var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
                 var brush = new System.Windows.Media.SolidColorBrush(color);
-                // 메인 창 전체 글자색 일괄 적용. DarkRed 강조(등급/퀄리티)는 검색 시 다시 덮어쓰므로 그대로 유지됨.
-                this.Foreground = brush;
-                if (tabControl1 != null)
-                {
-                    foreach (var t in FindVisualChildren<System.Windows.Controls.TextBlock>(tabControl1)) t.Foreground = brush;
-                    foreach (var l in FindVisualChildren<System.Windows.Controls.Label>(tabControl1)) l.Foreground = brush;
-                    foreach (var c in FindVisualChildren<System.Windows.Controls.CheckBox>(tabControl1)) c.Foreground = brush;
-                    foreach (var b in FindVisualChildren<System.Windows.Controls.Button>(tabControl1)) b.Foreground = brush;
-                    foreach (var tb in FindVisualChildren<System.Windows.Controls.TextBox>(tabControl1)) tb.Foreground = brush;
-                }
+                brush.Freeze();
+                System.Windows.Application.Current.Resources["AppText"] = brush;
+                // ListBox 문자열 아이템은 ListBox.Foreground를 따름 → 직접 지정.
+                if (liPrice != null) liPrice.Foreground = brush;
             }
             catch { }
         }

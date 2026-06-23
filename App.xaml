@@ -4,6 +4,11 @@
              xmlns:local="clr-namespace:Poe2TradeSearch"
              StartupUri="WinMain.xaml">
     <Application.Resources>
-         
+        <!-- 테마 brush: ApplyBackgroundColor()/ApplyTextColor()에서 사용자 색으로 갱신.
+             XAML 전체가 {DynamicResource}로 참조 → 한 곳만 바꾸면 전부 반영(누락 없음). -->
+        <SolidColorBrush x:Key="AppBackground" Color="#F0F0F0"/>
+        <SolidColorBrush x:Key="AppText" Color="#000000"/>
+        <!-- 버튼 커스텀 템플릿은 ⚙ 등 아이콘 버튼 모양을 깨뜨려 제거.
+             글자색 기능 임시 비활성 상태라 버튼은 기본 모양 유지. -->
     </Application.Resources>
 </Application>
