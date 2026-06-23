@@ -17,9 +17,12 @@ namespace Poe2TradeSearch
         public int HideoutKeycode { get; private set; }
         public int RemainingKeycode { get; private set; }
         public string BackgroundColor { get; private set; }
+        public string TextColor { get; private set; }
+        internal WinMain.CustomCommand[] CustomCommands { get; private set; }
 
         private int _pendingKeycode = 0;
         private bool _capturing = false;
+        private bool _refreshingCombos = false;
 
         private static readonly (string Label, int Keycode)[] FKeyOptions = new[]
         {
@@ -29,7 +32,7 @@ namespace Poe2TradeSearch
             ("F9",  120), ("F10", 121), ("F11", 122), ("F12", 123),
         };
 
-        public WinSetting(bool useAutoClip, int currentKeycode, bool currentCtrl, int hideDelay, string currentLeague, bool useCtrlWheel, double uiScale, bool gamePadEnabled, string gamePadButton, int hideoutKeycode, int remainingKeycode, string backgroundColor)
+        internal WinSetting(bool useAutoClip, int currentKeycode, bool currentCtrl, int hideDelay, string currentLeague, bool useCtrlWheel, double uiScale, bool gamePadEnabled, string gamePadButton, int hideoutKeycode, int remainingKeycode, string backgroundColor, string textColor, WinMain.CustomCommand[] customCommands)
         {
             InitializeComponent();
             UseAutoClip = useAutoClip;
@@ -44,6 +47,21 @@ namespace Poe2TradeSearch
             HideoutKeycode = hideoutKeycode;
             RemainingKeycode = remainingKeycode;
             BackgroundColor = string.IsNullOrEmpty(backgroundColor) ? "#F0F0F0" : backgroundColor;
+            TextColor = string.IsNullOrEmpty(textColor) ? "#000000" : textColor;
+            CustomCommands = NormalizeCustomCommands(customCommands);
+        }
+
+        private WinMain.CustomCommand[] NormalizeCustomCommands(WinMain.CustomCommand[] src)
+        {
+            var result = new WinMain.CustomCommand[3];
+            for (int i = 0; i < 3; i++)
+            {
+                if (src != null && i < src.Length && src[i] != null)
+                    result[i] = new WinMain.CustomCommand { Keycode = src[i].Keycode, Command = src[i].Command ?? "" };
+                else
+                    result[i] = new WinMain.CustomCommand { Keycode = 0, Command = "" };
+            }
+            return result;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -104,9 +122,26 @@ namespace Poe2TradeSearch
 
             PopulateFKeyCombo(cbHideoutKey, HideoutKeycode);
             PopulateFKeyCombo(cbRemainingKey, RemainingKeycode);
+            PopulateFKeyCombo(cbCustom1Key, CustomCommands[0].Keycode);
+            PopulateFKeyCombo(cbCustom2Key, CustomCommands[1].Keycode);
+            PopulateFKeyCombo(cbCustom3Key, CustomCommands[2].Keycode);
+            tbCustom1Cmd.Text = CustomCommands[0].Command;
+            tbCustom2Cmd.Text = CustomCommands[1].Command;
+            tbCustom3Cmd.Text = CustomCommands[2].Command;
+
+            // 동적 중복 제외: 5개 콤보 SelectionChanged 연결 후 1회 갱신
+            cbHideoutKey.SelectionChanged += KeyCombo_SelectionChanged;
+            cbRemainingKey.SelectionChanged += KeyCombo_SelectionChanged;
+            cbCustom1Key.SelectionChanged += KeyCombo_SelectionChanged;
+            cbCustom2Key.SelectionChanged += KeyCombo_SelectionChanged;
+            cbCustom3Key.SelectionChanged += KeyCombo_SelectionChanged;
+            RefreshKeyCombos();
 
             tbBgColor.Text = BackgroundColor;
             ApplyColorPreview(BackgroundColor);
+
+            tbTextColor.Text = TextColor;
+            ApplyTextColorPreview(TextColor);
         }
 
         private void btnPickColor_Click(object sender, RoutedEventArgs e)
@@ -132,6 +167,29 @@ namespace Poe2TradeSearch
             catch { bdColorPreview.Background = System.Windows.Media.Brushes.White; }
         }
 
+        private void btnPickTextColor_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new System.Windows.Forms.ColorDialog();
+            dlg.Color = HexToDrawingColor(tbTextColor.Text);
+            dlg.FullOpen = true;
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                string hex = $"#{dlg.Color.R:X2}{dlg.Color.G:X2}{dlg.Color.B:X2}";
+                tbTextColor.Text = hex;
+                ApplyTextColorPreview(hex);
+            }
+        }
+
+        private void ApplyTextColorPreview(string hex)
+        {
+            try
+            {
+                var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+                bdTextColorPreview.Background = new System.Windows.Media.SolidColorBrush(color);
+            }
+            catch { bdTextColorPreview.Background = System.Windows.Media.Brushes.Black; }
+        }
+
         private System.Drawing.Color HexToDrawingColor(string hex)
         {
             try { return System.Drawing.ColorTranslator.FromHtml(hex); }
@@ -148,6 +206,48 @@ namespace Poe2TradeSearch
                 if (FKeyOptions[i].Keycode == selectedKeycode) selectIdx = i;
             }
             cb.SelectedIndex = selectIdx;
+        }
+
+        private void KeyCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_refreshingCombos) return;
+            RefreshKeyCombos();
+        }
+
+        // 5개 단축키 콤보가 서로 이미 쓰인 F키를 목록에서 동적 제외
+        private void RefreshKeyCombos()
+        {
+            _refreshingCombos = true;
+            try
+            {
+                var combos = new[] { cbHideoutKey, cbRemainingKey, cbCustom1Key, cbCustom2Key, cbCustom3Key };
+
+                var selected = new int[combos.Length];
+                for (int i = 0; i < combos.Length; i++)
+                    selected[i] = (int?)((combos[i].SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag) ?? 0;
+
+                var used = new System.Collections.Generic.HashSet<int>();
+                foreach (var k in selected) if (k != 0) used.Add(k);
+
+                for (int i = 0; i < combos.Length; i++)
+                {
+                    int mine = selected[i];
+                    var cb = combos[i];
+                    cb.Items.Clear();
+                    int selectIdx = 0, idx = 0;
+                    for (int j = 0; j < FKeyOptions.Length; j++)
+                    {
+                        int kc = FKeyOptions[j].Keycode;
+                        bool include = (kc == 0) || (kc == mine) || !used.Contains(kc);
+                        if (!include) continue;
+                        cb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = FKeyOptions[j].Label, Tag = kc });
+                        if (kc == mine) selectIdx = idx;
+                        idx++;
+                    }
+                    cb.SelectedIndex = selectIdx;
+                }
+            }
+            finally { _refreshingCombos = false; }
         }
 
         // 숫자만 입력 허용
@@ -272,7 +372,15 @@ namespace Poe2TradeSearch
             HideoutKeycode = (int?)((cbHideoutKey.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag) ?? 0;
             RemainingKeycode = (int?)((cbRemainingKey.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag) ?? 0;
 
+            CustomCommands = new WinMain.CustomCommand[]
+            {
+                new WinMain.CustomCommand { Keycode = (int?)((cbCustom1Key.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag) ?? 0, Command = (tbCustom1Cmd.Text ?? "").Trim() },
+                new WinMain.CustomCommand { Keycode = (int?)((cbCustom2Key.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag) ?? 0, Command = (tbCustom2Cmd.Text ?? "").Trim() },
+                new WinMain.CustomCommand { Keycode = (int?)((cbCustom3Key.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag) ?? 0, Command = (tbCustom3Cmd.Text ?? "").Trim() }
+            };
+
             BackgroundColor = tbBgColor.Text;
+            TextColor = tbTextColor.Text;
 
             DialogResult = true;
         }

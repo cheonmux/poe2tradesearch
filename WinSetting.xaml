@@ -29,6 +29,8 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 섹션 제목 -->
@@ -106,8 +108,15 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="130"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="8"/>
                 <RowDefinition Height="Auto"/>
@@ -116,6 +125,15 @@
             <ComboBox Grid.Row="0" Grid.Column="1" Name="cbHideoutKey" Width="80" Height="26"/>
             <TextBlock Grid.Row="2" Grid.Column="0" Text="남은 몬스터 수:" VerticalAlignment="Center"/>
             <ComboBox Grid.Row="2" Grid.Column="1" Name="cbRemainingKey" Width="80" Height="26"/>
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="커스텀 명령어 1:" VerticalAlignment="Center"/>
+            <ComboBox Grid.Row="4" Grid.Column="1" Name="cbCustom1Key" Width="80" Height="26"/>
+            <TextBox Grid.Row="4" Grid.Column="2" Name="tbCustom1Cmd" Height="26" Margin="8,0,0,0" VerticalContentAlignment="Center"/>
+            <TextBlock Grid.Row="6" Grid.Column="0" Text="커스텀 명령어 2:" VerticalAlignment="Center"/>
+            <ComboBox Grid.Row="6" Grid.Column="1" Name="cbCustom2Key" Width="80" Height="26"/>
+            <TextBox Grid.Row="6" Grid.Column="2" Name="tbCustom2Cmd" Height="26" Margin="8,0,0,0" VerticalContentAlignment="Center"/>
+            <TextBlock Grid.Row="8" Grid.Column="0" Text="커스텀 명령어 3:" VerticalAlignment="Center"/>
+            <ComboBox Grid.Row="8" Grid.Column="1" Name="cbCustom3Key" Width="80" Height="26"/>
+            <TextBox Grid.Row="8" Grid.Column="2" Name="tbCustom3Cmd" Height="26" Margin="8,0,0,0" VerticalContentAlignment="Center"/>
         </Grid>
 
         <!-- 배경색 섹션 -->
@@ -126,11 +144,19 @@
             <Button Name="btnPickColor" Content="색상 선택..." Width="80" Height="24" Margin="8,0,0,0" Click="btnPickColor_Click"/>
         </StackPanel>
 
+        <!-- 글자색 섹션 (배경색과 같은 패턴) -->
+        <TextBlock Grid.Row="19" Text="글자색" FontWeight="Bold" Margin="0,10,0,10"/>
+        <StackPanel Grid.Row="20" Orientation="Horizontal" Margin="0,0,0,8">
+            <Border Name="bdTextColorPreview" Width="24" Height="24" CornerRadius="3" Margin="0,0,8,0" BorderBrush="#AAAAAA" BorderThickness="1"/>
+            <TextBox Name="tbTextColor" Width="80" Height="24" VerticalContentAlignment="Center" IsReadOnly="True"/>
+            <Button Name="btnPickTextColor" Content="색상 선택..." Width="80" Height="24" Margin="8,0,0,0" Click="btnPickTextColor_Click"/>
+        </StackPanel>
+
         <!-- 구분선 -->
-        <Separator Grid.Row="19" Margin="0,4,0,0"/>
+        <Separator Grid.Row="21" Margin="0,4,0,0"/>
 
         <!-- 확인/취소 버튼 -->
-        <StackPanel Grid.Row="20" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+        <StackPanel Grid.Row="22" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
             <Button Name="btnOk" Content="확인" Width="72" Height="26" Margin="0,0,8,0"
                     Click="btnOk_Click"/>
             <Button Name="btnCancel" Content="취소" Width="72" Height="26"

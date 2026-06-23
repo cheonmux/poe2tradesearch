@@ -147,6 +147,7 @@ namespace Poe2TradeSearch
                 if (mConfigData == null) mConfigData = ConfigData.CreateDefault();
                 if (mConfigData.Options == null) mConfigData.Options = ConfigData.CreateDefault().Options;
                 if (mConfigData.Shortcuts == null) mConfigData.Shortcuts = ConfigData.CreateDefault().Shortcuts;
+                if (mConfigData.Options.CustomCommands == null) mConfigData.Options.CustomCommands = ConfigData.CreateDefault().Options.CustomCommands;
                 if (string.IsNullOrEmpty(mConfigData.Options.League)) mConfigData.Options.League = "Runes of Aldur";
 
                 if (mConfigData.Options.SearchPriceCount > 80)

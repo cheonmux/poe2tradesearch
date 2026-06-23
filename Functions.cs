@@ -182,6 +182,85 @@ namespace Poe2TradeSearch
 
         [DllImport("user32.dll")] internal static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
+        // SendInput: IME 상태와 무관하게 문자를 직접 주입 (한글 자판에서 영문 명령어가 한글로 입력되는 문제 회피)
+        // INPUT 공용체: KEYBDINPUT만 사용하지만, MOUSEINPUT(가장 큰 멤버)에 맞춰 크기를 확보해야
+        // x86/x64 모두에서 SendInput이 올바른 cbSize를 받는다. MOUSEINPUT을 직접 임베드해 정확한 크기 보장.
+        [StructLayout(LayoutKind.Explicit)]
+        internal struct INPUTUNION
+        {
+            [FieldOffset(0)] internal MOUSEINPUT mi;
+            [FieldOffset(0)] internal KEYBDINPUT ki;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct INPUT
+        {
+            internal uint type;
+            internal INPUTUNION u;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct MOUSEINPUT
+        {
+            internal int dx;
+            internal int dy;
+            internal uint mouseData;
+            internal uint dwFlags;
+            internal uint time;
+            internal IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct KEYBDINPUT
+        {
+            internal ushort wVk;
+            internal ushort wScan;
+            internal uint dwFlags;
+            internal uint time;
+            internal IntPtr dwExtraInfo;
+        }
+
+        internal const uint INPUT_KEYBOARD = 1;
+        internal const uint KEYEVENTF_KEYUP = 0x0002;
+        internal const uint KEYEVENTF_UNICODE = 0x0004;
+        internal const ushort VK_RETURN = 0x0D;
+
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+        // Enter → 명령어 본문(유니코드 직접 주입) → Enter. IME 우회.
+        internal static void SendChatCommand(string command)
+        {
+            if (string.IsNullOrEmpty(command)) return;
+
+            var list = new System.Collections.Generic.List<INPUT>();
+            AddKey(list, VK_RETURN, '\0', false);            // 채팅 열기
+            AddKey(list, VK_RETURN, '\0', true);
+            foreach (char c in command)
+            {
+                AddKey(list, 0, c, false);                   // 유니코드 문자 down
+                AddKey(list, 0, c, true);                    // up
+            }
+            AddKey(list, VK_RETURN, '\0', false);            // 전송
+            AddKey(list, VK_RETURN, '\0', true);
+
+            INPUT[] inputs = list.ToArray();
+            SendInput((uint)inputs.Length, inputs, System.Runtime.InteropServices.Marshal.SizeOf(typeof(INPUT)));
+        }
+
+        private static void AddKey(System.Collections.Generic.List<INPUT> list, ushort vk, char unicode, bool keyUp)
+        {
+            uint flags = 0;
+            ushort scan = 0;
+            if (vk == 0) { flags |= KEYEVENTF_UNICODE; scan = unicode; }  // 유니코드 주입: wVk=0, wScan=문자
+            if (keyUp) flags |= KEYEVENTF_KEYUP;
+            list.Add(new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                u = new INPUTUNION { ki = new KEYBDINPUT { wVk = vk, wScan = scan, dwFlags = flags, time = 0, dwExtraInfo = IntPtr.Zero } }
+            });
+        }
+
         /*
         [DllImport("user32.dll")] internal static extern uint GetWindowThreadProcessId(IntPtr hwnd, IntPtr proccess);
         [DllImport("user32.dll")] internal static extern IntPtr GetKeyboardLayout(uint thread);

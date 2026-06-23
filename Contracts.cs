@@ -26,6 +26,7 @@ namespace Poe2TradeSearch
             public bool ChkLv;
             public bool ChkSocket;
             public bool ChkQuality;
+            public bool ChkUnidentify;
             public double SocketMin;
             public double SocketMax;
             public double LinkMin;
@@ -97,7 +98,14 @@ namespace Poe2TradeSearch
                         AutoSelectCorrupt = "no",
                         AutoSelectByType = "",
                         UiScale = 1.0,
-                        BackgroundColor = "#F0F0F0"
+                        BackgroundColor = "#F0F0F0",
+                        TextColor = "#000000",
+                        CustomCommands = new CustomCommand[]
+                        {
+                            new CustomCommand { Keycode = 0, Command = "" },
+                            new CustomCommand { Keycode = 0, Command = "" },
+                            new CustomCommand { Keycode = 0, Command = "" }
+                        }
                     },
                     Shortcuts = new ConfigShortcut[]
                     {
@@ -111,11 +119,24 @@ namespace Poe2TradeSearch
             }
         }
 
+        [DataContract(Name = "customCommand")]
+        internal class CustomCommand
+        {
+            [DataMember(Name = "keycode")]
+            internal int Keycode;
+
+            [DataMember(Name = "command")]
+            internal string Command;
+        }
+
         [DataContract(Name = "options")]
         internal class ConfigOption
         {
             [DataMember(Name = "league")]
             internal string League = null;
+
+            [DataMember(Name = "customCommands")]
+            internal CustomCommand[] CustomCommands;
 
             [DataMember(Name = "server")]
             internal string Server = null;
@@ -180,6 +201,9 @@ namespace Poe2TradeSearch
 
             [DataMember(Name = "background_color")]
             internal string BackgroundColor = "#F0F0F0";
+
+            [DataMember(Name = "text_color")]
+            internal string TextColor = "#000000";
         }
 
         [DataContract(Name = "shortcuts")]
@@ -537,6 +561,9 @@ namespace Poe2TradeSearch
 
             [DataMember(Name = "corrupted")]
             internal q_Option Corrupted = new q_Option();
+
+            [DataMember(Name = "identified")]
+            internal q_Option Identified = new q_Option();
         }
 
         [DataContract]

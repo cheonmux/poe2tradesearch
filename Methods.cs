@@ -40,6 +40,7 @@ namespace Poe2TradeSearch
             ckLv.IsChecked = false;
             ckQuality.IsChecked = false;
             ckSocket.IsChecked = false;
+            ckUnidentify.IsChecked = false;
             Synthesis.IsChecked = false;
 
             cbInfluence1.SelectedIndex = 0;
@@ -324,6 +325,8 @@ namespace Poe2TradeSearch
 
                                     string input = Regex.Replace(optMatch, @" \([a-zA-Z]+\)", "");
                                     input = Regex.Replace(input, @"\([+-]?[0-9]+\.?[0-9]*-[+-]?[0-9]+\.?[0-9]*\)", "");
+                                    // "금(자수정-토파즈)의 유산", "영원한 젊음()" 같은 텍스트 선택지/빈 괄호 제거.
+                                    input = Regex.Replace(input, @"\([^()0-9]*\)", "");
                                     input = Regex.Escape(Regex.Replace(input, @"[+-]?[0-9]+\.[0-9]+|[+-]?[0-9]+", "#"));
                                     input = Regex.Replace(input, @"\\#", "[+-]?([0-9]+\\.[0-9]+|[0-9]+|\\#)");
                                     //input = input + (is_captured_beast ? "\\(" + RS.Captured[z] + "\\)" : "");
@@ -339,13 +342,15 @@ namespace Poe2TradeSearch
                                         DataEntrie[] entries = Array.FindAll(data_result.Entries, x =>
                                             rgx.IsMatch(x.Text) || rgx.IsMatch(Regex.Replace(x.Text, @"[+-]?[0-9]+\.[0-9]+|[+-]?[0-9]+", "#")));
 
+                                        // 화살통(Quiver)은 카테고리상 armour지만 (특정) 로컬 stat이 없음 → accessory처럼 글로벌만 사용.
+                                        bool isQuiver = item_type.EndsWith("화살통") || item_type.EndsWith("Quiver");
                                         // 2개 이상 같은 옵션이 있을때 장비 옵션 (특정) 만 추출
                                         if (entries.Length > 1)
                                         {
                                             // POE2: 로컬(특정) stat 판별 — 무기/방어구는 (특정), 장신구(accessory)는 글로벌.
                                             // lParticular value: 1=무기 전용, 2=방어구 전용. 카테고리와 일치할 때만 (특정) 적용.
                                             // (예: 투구=방어구는 value 2만 허용. 무기 전용(value 1)이 방어구에 잘못 삽입되던 버그 수정.)
-                                            byte wantParticular = cate_ids[0] == "weapon" ? (byte)1 : cate_ids[0] == "armour" ? (byte)2 : (byte)0;
+                                            byte wantParticular = cate_ids[0] == "weapon" ? (byte)1 : (cate_ids[0] == "armour" && !isQuiver) ? (byte)2 : (byte)0;
                                             DataEntrie[] entries_tmp = Array.FindAll(entries, x => {
                                                 string[] idParts = x.Id.Split('.');
                                                 if (idParts.Length != 2 || !RS.lParticular.TryGetValue(idParts[1], out byte pv)) return false;
@@ -362,8 +367,13 @@ namespace Poe2TradeSearch
                                             // 1개만 매칭됐을 때: 글로벌 버전이고, 무기/방어구면 같은 그룹의 (특정) 버전으로 교체.
                                             // (장신구 accessory는 글로벌 그대로 사용)
                                             string[] matchedIdParts = entries[0].Id.Split('.');
-                                            byte wantParticular = cate_ids[0] == "weapon" ? (byte)1 : cate_ids[0] == "armour" ? (byte)2 : (byte)0;
-                                            if (matchedIdParts.Length == 2 && !RS.lParticular.ContainsKey(matchedIdParts[1]) && wantParticular != 0)
+                                            byte wantParticular = cate_ids[0] == "weapon" ? (byte)1 : (cate_ids[0] == "armour" && !isQuiver) ? (byte)2 : (byte)0;
+                                            // accessory인데 (특정) 버전만 매칭됐으면 무효화 — 글로벌 stat 없는 경우 잘못 선택 방지.
+                                            if (wantParticular == 0 && matchedIdParts.Length == 2 && RS.lParticular.ContainsKey(matchedIdParts[1]))
+                                            {
+                                                entries = new DataEntrie[0];
+                                            }
+                                            else if (matchedIdParts.Length == 2 && !RS.lParticular.ContainsKey(matchedIdParts[1]) && wantParticular != 0)
                                             {
                                                 string localText = entries[0].Text + "(특정)";
                                                 DataEntrie[] entries_tmp = Array.FindAll(data_result.Entries, x => {
@@ -606,6 +616,8 @@ namespace Poe2TradeSearch
                     bool is_vaal_gem = is_gem && lItemOption[PS.Vaal.Text[z] + " " + item_type] == "_TRUE_";
                     bool is_detail = is_gem || is_currency || is_divinationCard || is_prophecy;
                     bool is_unIdentify = lItemOption[PS.Unidentified.Text[z]] == "_TRUE_";
+                    // 클립보드에 "미확인" 줄 있으면 미확인 체크박스 자동 체크
+                    ckUnidentify.IsChecked = is_unIdentify;
 
                     if (lItemOption.ContainsKey(PS.Sockets.Text[z]) && lItemOption[PS.Sockets.Text[z]] != "")
                     {
@@ -967,6 +979,7 @@ namespace Poe2TradeSearch
             itemOption.Corrupt = (byte)cbCorrupt.SelectedIndex;
             itemOption.ChkSocket = ckSocket.IsChecked == true;
             itemOption.ChkQuality = ckQuality.IsChecked == true;
+            itemOption.ChkUnidentify = ckUnidentify.IsChecked == true;
             itemOption.ChkLv = ckLv.IsChecked == true;
             itemOption.ByType = cbName.SelectedIndex == 2;
 
@@ -1079,6 +1092,7 @@ namespace Poe2TradeSearch
 
                 // misc_filters: 품질/부패/레벨 체크시에만 포함
                 bool useMisc = itemOptions.ChkQuality == true || itemOptions.Corrupt != 0
+                    || itemOptions.ChkUnidentify == true
                     || (Inherit != "map" && itemOptions.ChkLv == true);
                 if (useMisc)
                 {
@@ -1090,6 +1104,7 @@ namespace Poe2TradeSearch
                     JQ.Filters.Misc.Filters.Gem_level.Min = itemOptions.ChkLv == true && Inherit == "gem" ? itemOptions.LvMin : 99999;
                     JQ.Filters.Misc.Filters.Gem_level.Max = itemOptions.ChkLv == true && Inherit == "gem" ? itemOptions.LvMax : 99999;
                     JQ.Filters.Misc.Filters.Corrupted.Option = itemOptions.Corrupt == 1 ? "true" : (itemOptions.Corrupt == 2 ? "false" : "any");
+                    JQ.Filters.Misc.Filters.Identified.Option = itemOptions.ChkUnidentify == true ? "false" : "any";
                 }
 
                 // map_filters: 맵 티어 체크시에만 포함
@@ -1749,26 +1764,65 @@ private ParserDictionary GetExchangeItem(string id)
                 this.Visibility = Visibility.Hidden;
         }
 
+        // "{ENTER}본문{ENTER}" 형식이면 본문만 반환(IME 우회 주입 대상). 본문에 {..} 특수토큰이
+        // 더 있거나 형식이 다르면 null → 호출부가 기존 SendKeys로 처리.
+        private static string ExtractChatBody(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return null;
+            const string head = "{ENTER}";
+            const string tail = "{ENTER}";
+            if (!value.StartsWith(head, StringComparison.OrdinalIgnoreCase)) return null;
+            if (!value.EndsWith(tail, StringComparison.OrdinalIgnoreCase)) return null;
+            if (value.Length <= head.Length + tail.Length) return null;
+            string body = value.Substring(head.Length, value.Length - head.Length - tail.Length);
+            if (body.IndexOf('{') >= 0 || body.IndexOf('}') >= 0) return null; // 본문에 특수토큰이 더 있으면 제외
+            return body;
+        }
+
         private void InstallRegisterHotKey()
         {
             mInstalledHotKey = true;
 
             // 0x0: None, 0x1: Alt, 0x2: Ctrl, 0x3: Shift
-            for (int i = 0; i < mConfigData.Shortcuts.Length; i++)
+            for (int i = 0; mConfigData.Shortcuts != null && i < mConfigData.Shortcuts.Length; i++)
             {
                 ConfigShortcut shortcut = mConfigData.Shortcuts[i];
                 if (shortcut.Keycode > 0 && (shortcut.Value ?? "") != "")
                     Native.RegisterHotKey(mMainHwnd, 10001 + i, (uint)(shortcut.Ctrl ? 0x2 : 0x0), (uint)Math.Abs(shortcut.Keycode));
             }
+
+            // 커스텀 채팅 명령어: 핫키 ID 영역 20001+i 로 분리 등록
+            var customCmds = mConfigData.Options?.CustomCommands;
+            if (customCmds != null)
+            {
+                for (int i = 0; i < customCmds.Length; i++)
+                {
+                    var cc = customCmds[i];
+                    if (cc != null && cc.Keycode > 0 && !string.IsNullOrEmpty(cc.Command))
+                        Native.RegisterHotKey(mMainHwnd, 20001 + i, 0x0, (uint)Math.Abs(cc.Keycode));
+                }
+            }
         }
 
         private void RemoveRegisterHotKey()
         {
-            for (int i = 0; i < mConfigData.Shortcuts.Length; i++)
+            for (int i = 0; mConfigData.Shortcuts != null && i < mConfigData.Shortcuts.Length; i++)
             {
                 ConfigShortcut shortcut = mConfigData.Shortcuts[i];
                 if (shortcut.Keycode > 0 && (shortcut.Value ?? "") != "")
                     Native.UnregisterHotKey(mMainHwnd, 10001 + i);
+            }
+
+            // 커스텀 채팅 명령어 핫키 해제
+            var customCmds = mConfigData.Options?.CustomCommands;
+            if (customCmds != null)
+            {
+                for (int i = 0; i < customCmds.Length; i++)
+                {
+                    var cc = customCmds[i];
+                    if (cc != null && cc.Keycode > 0 && !string.IsNullOrEmpty(cc.Command))
+                        Native.UnregisterHotKey(mMainHwnd, 20001 + i);
+                }
             }
 
             mInstalledHotKey = false;
@@ -1816,6 +1870,21 @@ private ParserDictionary GetExchangeItem(string id)
 
                 if (Native.GetForegroundWindow().Equals(findHwnd))
                 {
+                    int hotkeyId = wParam.ToInt32();
+                    if (hotkeyId >= 20001)
+                    {
+                        int ci = hotkeyId - 20001;
+                        var customCmds = mConfigData.Options?.CustomCommands;
+                        if (!mPausedHotKey && customCmds != null && ci >= 0 && ci < customCmds.Length)
+                        {
+                            var cc = customCmds[ci];
+                            if (cc != null && cc.Keycode > 0 && !string.IsNullOrEmpty(cc.Command))
+                                Native.SendChatCommand(cc.Command);
+                        }
+                        mHotkeyProcBlock = false;
+                        return IntPtr.Zero;
+                    }
+
                     int key_idx = wParam.ToInt32() - 10001;
 
                     try
@@ -1876,8 +1945,14 @@ private ParserDictionary GetExchangeItem(string id)
                                 }
                                 else
                                 {
-                                    // 채팅 명령어 직접 전송 (예: {ENTER}/hideout{ENTER})
-                                    System.Windows.Forms.SendKeys.SendWait(shortcut.Value);
+                                    // 채팅 명령어 전송 (예: {ENTER}/hideout{ENTER}).
+                                    // {ENTER}본문{ENTER} 형식이면 본문만 추출해 SendInput 유니코드 주입(IME 우회).
+                                    string val = shortcut.Value;
+                                    string body = ExtractChatBody(val);
+                                    if (body != null)
+                                        Native.SendChatCommand(body);
+                                    else
+                                        System.Windows.Forms.SendKeys.SendWait(val);
                                 }
                             }
                         }

@@ -80,6 +80,7 @@ namespace Poe2TradeSearch
 
             // 저장된 배경색 적용
             ApplyBackgroundColor();
+            ApplyTextColor();
 
             string outString = "";
 
@@ -478,7 +479,7 @@ namespace Poe2TradeSearch
                     gdTabItem2.Children.Add(tkPriceInfo);
                     gdTabItem2.Children.Add(tkPriceCount);
                 }
-                tbHelpText.Text = "최소 값 단위는 카오스 오브";
+                tbHelpText.Text = "매물별 실제 시세 표시";
             }
             else
             {
@@ -522,14 +523,21 @@ namespace Poe2TradeSearch
         private void Button_Click_3(object sender, RoutedEventArgs e)
         {
             MessageBox.Show(Application.Current.MainWindow,
-                "버전: " + GetFileVersion() + " (DATA." + mFilterData[0].Upddate + ")" + '\n' + '\n'
+                "일부 기능(단축키·클립보드)은 관리자 권한이 필요합니다." + '\n'
+                + "관리자 권한으로 실행하지 않았다면 종료 후 다시 실행해주세요." + '\n' + '\n'
+                + "버전: " + GetFileVersion() + " (DATA." + mFilterData[0].Upddate + ")" + '\n' + '\n'
                 + "원작: https://github.com/phiDelPark/PoeTradeSearch" + '\n'
                 + "POE2 포팅: https://poe2tools.net/" + '\n' + '\n'
-                + "시세 보는법: 검색수[.+] 최소값 ~ 최대값 = 많은[수] 1 ~ 2위" + '\n' + '\n'
+                + "시세 보는법:" + '\n'
+                + "  6신성 ~ 27신성 = 20신성[8], 14신성[2]" + '\n'
+                + "  최저   ~  최고  =  최빈가[건수], 2위[건수]" + '\n' + '\n'
+                + "저항 합산: 앞 체크 시 종류 무관 총합 검색 (20+20+20 → 60↑)" + '\n'
+                + "           체크 해제 시 각 저항 개별 검색" + '\n' + '\n'
+                + "   F2) 은신처로 이동" + '\n'
+                + "   F4) 맵 내의 남은 몬스터 수 표시" + '\n'
                 + "   F11) 일시 중지" + '\n'
-                + "   ESC) 창 닫기" + '\n' + '\n'
-                + "리그/검색 옵션은 ⚙ 버튼 또는 data\\Config.txt 에서 설정 가능합니다." + '\n'
-                + "참고: FiltersKO.txt를 삭제 후 실행하면 최신 데이터로 자동 업데이트합니다.",
+                + "   ESC) 창 최소화" + '\n' + '\n'
+                + "리그/검색 옵션은 ⚙ 버튼으로 설정 가능합니다.",
                 "POE2 거래소 검색"
                 );
 
@@ -558,7 +566,7 @@ namespace Poe2TradeSearch
                 remainingKeycode = remainingShortcut?.Keycode ?? 0;
             }
 
-            WinSetting dlg = new WinSetting(useAutoClip, currentKeycode, currentCtrl, currentHideDelay, mConfigData.Options.League, mConfigData.Options.UseCtrlWheel, mConfigData.Options.UiScale, mConfigData.Options.GamePadEnabled, mConfigData.Options.GamePadButton, hideoutKeycode, remainingKeycode, mConfigData.Options.BackgroundColor);
+            WinSetting dlg = new WinSetting(useAutoClip, currentKeycode, currentCtrl, currentHideDelay, mConfigData.Options.League, mConfigData.Options.UseCtrlWheel, mConfigData.Options.UiScale, mConfigData.Options.GamePadEnabled, mConfigData.Options.GamePadButton, hideoutKeycode, remainingKeycode, mConfigData.Options.BackgroundColor, mConfigData.Options.TextColor, mConfigData.Options.CustomCommands);
             dlg.Owner = this;
 
             if (dlg.ShowDialog() == true)
@@ -605,15 +613,21 @@ namespace Poe2TradeSearch
                 mConfigData.Options.BackgroundColor = dlg.BackgroundColor;
                 ApplyBackgroundColor();
 
+                mConfigData.Options.TextColor = dlg.TextColor;
+                ApplyTextColor();
+
                 if (mConfigData.Shortcuts != null)
                 {
                     var hideoutShortcut = System.Array.Find(mConfigData.Shortcuts, x => (x.Value ?? "").ToLower().Contains("/hideout"));
                     var remainingShortcut = System.Array.Find(mConfigData.Shortcuts, x => (x.Value ?? "").ToLower().Contains("/remaining"));
                     if (hideoutShortcut != null) hideoutShortcut.Keycode = dlg.HideoutKeycode;
                     if (remainingShortcut != null) remainingShortcut.Keycode = dlg.RemainingKeycode;
-                    RemoveRegisterHotKey();
-                    InstallRegisterHotKey();
                 }
+
+                // 커스텀 명령어 반영 및 핫키 재등록 (Shortcuts 유무와 무관)
+                mConfigData.Options.CustomCommands = dlg.CustomCommands;
+                RemoveRegisterHotKey();
+                InstallRegisterHotKey();
 
                 SaveConfig();
             }
@@ -641,7 +655,8 @@ namespace Poe2TradeSearch
                 if (tabControl1 != null) tabControl1.Background = brush;
                 foreach (var tb in FindVisualChildren<System.Windows.Controls.TextBox>(tabControl1))
                 {
-                    if (tb.IsReadOnly) tb.Background = brush;
+                    // 입력칸(편집용)도 포함해 전부 배경색 적용 — 다크모드 시 흰 칸이 둥둥 뜨지 않도록.
+                    tb.Background = brush;
                 }
                 if (tkDetail != null) tkDetail.Background = brush;
                 if (liPrice != null) liPrice.Background = brush;
@@ -649,6 +664,28 @@ namespace Poe2TradeSearch
                 {
                     var grid = FindVisualChildren<System.Windows.Controls.Grid>(bdExchange);
                     foreach (var g in grid) { g.Background = brush; break; }
+                }
+            }
+            catch { }
+        }
+
+        private void ApplyTextColor()
+        {
+            try
+            {
+                string hex = mConfigData.Options.TextColor;
+                if (string.IsNullOrEmpty(hex)) hex = "#000000";
+                var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+                var brush = new System.Windows.Media.SolidColorBrush(color);
+                // 메인 창 전체 글자색 일괄 적용. DarkRed 강조(등급/퀄리티)는 검색 시 다시 덮어쓰므로 그대로 유지됨.
+                this.Foreground = brush;
+                if (tabControl1 != null)
+                {
+                    foreach (var t in FindVisualChildren<System.Windows.Controls.TextBlock>(tabControl1)) t.Foreground = brush;
+                    foreach (var l in FindVisualChildren<System.Windows.Controls.Label>(tabControl1)) l.Foreground = brush;
+                    foreach (var c in FindVisualChildren<System.Windows.Controls.CheckBox>(tabControl1)) c.Foreground = brush;
+                    foreach (var b in FindVisualChildren<System.Windows.Controls.Button>(tabControl1)) b.Foreground = brush;
+                    foreach (var tb in FindVisualChildren<System.Windows.Controls.TextBox>(tabControl1)) tb.Foreground = brush;
                 }
             }
             catch { }

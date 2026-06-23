@@ -210,6 +210,10 @@
                     <TextBox Name="tbLinksMin" Visibility="Collapsed" HorizontalAlignment="Left" Height="18" Margin="0,0,0,0" Text="" VerticalAlignment="Top" Width="16" />
                     <TextBox Name="tbLinksMax" Visibility="Collapsed" HorizontalAlignment="Left" Height="18" Margin="0,0,0,0" Text="" VerticalAlignment="Top" Width="16" />
 
+                    <Border BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" BorderThickness="1" HorizontalAlignment="Left" Height="30" Margin="186,283,0,0" VerticalAlignment="Top" Width="1" RenderTransformOrigin="0.5,0.5" />
+
+                    <CheckBox Name="ckUnidentify" Content="미확인" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" HorizontalAlignment="Left" Margin="192,275,0,0" VerticalAlignment="Top" Width="62" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" />
+
                     <CheckBox Name="Synthesis" BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" Content="결합" HorizontalAlignment="Left" Margin="255,275,-20,0" VerticalAlignment="Top" Width="146" Checked="tkPrice_ReSet" Unchecked="tkPrice_ReSet" Visibility="Collapsed" />
 
                     <Label Content="타락" HorizontalAlignment="Left" Margin="317,272,0,0" VerticalAlignment="Top" Padding="2,0,0,0" />
