@@ -521,6 +521,9 @@ namespace Poe2TradeSearch
 
             [DataMember(Name = "rarity")]
             internal q_Option Rarity = new q_Option();
+
+            [DataMember(Name = "quality")]
+            internal q_Min_And_Max Quality = new q_Min_And_Max();
         }
 
         [DataContract]
@@ -550,9 +553,6 @@ namespace Poe2TradeSearch
         [DataContract]
         internal class q_Misc_filters_filters
         {
-            [DataMember(Name = "quality")]
-            internal q_Min_And_Max Quality = new q_Min_And_Max();
-
             [DataMember(Name = "ilvl")]
             internal q_Min_And_Max Ilvl = new q_Min_And_Max();
 

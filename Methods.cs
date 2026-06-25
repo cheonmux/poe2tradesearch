@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -81,7 +81,7 @@ namespace Poe2TradeSearch
                 ((ComboBox)this.FindName("cbOpt" + i)).SelectedValuePath = "Name";
 
                 ((TextBox)this.FindName("tbOpt" + i)).Text = "";
-                ((TextBox)this.FindName("tbOpt" + i)).Background = SystemColors.WindowBrush;
+                ((TextBox)this.FindName("tbOpt" + i)).Background = System.Windows.Application.Current.Resources["AppBackground"] as System.Windows.Media.Brush;
                 ((TextBox)this.FindName("tbOpt" + i + "_0")).Text = "";
                 ((TextBox)this.FindName("tbOpt" + i + "_1")).Text = "";
                 ((CheckBox)this.FindName("tbOpt" + i + "_2")).IsEnabled = true;
@@ -314,13 +314,18 @@ namespace Poe2TradeSearch
                                     bool resistance = false;
                                     bool crafted = optLine.IndexOf("(crafted)") > -1;
 
-                                    // "감소"로 끝나는 mod는 거래소에 "증가"(음수)로만 존재 → 증가로 바꾸고 값 음수화.
+                                    // "감소"/"감폭"으로 끝나는 mod는 거래소에 "증가"/"증폭"(음수)으로만 존재 → 바꾸고 값 음수화.
                                     bool wasDecrease = false;
                                     string optMatch = optLine;
                                     if (Regex.IsMatch(optMatch, @"감소$"))
                                     {
                                         wasDecrease = true;
                                         optMatch = Regex.Replace(optMatch, @"감소$", "증가");
+                                    }
+                                    else if (Regex.IsMatch(optMatch, @"감폭$"))
+                                    {
+                                        wasDecrease = true;
+                                        optMatch = Regex.Replace(optMatch, @"감폭$", "증폭");
                                     }
 
                                     string input = Regex.Replace(optMatch, @" \([a-zA-Z]+\)", "");
@@ -439,8 +444,15 @@ namespace Poe2TradeSearch
                                                     }
                                                     else if (t >= matches1.Count || matches1[t].Value != matches2[t].Value)
                                                     {
-                                                        isBreak = false;
-                                                        break;
+                                                        // 필터에 고정 숫자가 있고 클립보드 값과 다른 경우:
+                                                        // rgx 매칭은 이미 통과했으므로(고정숫자도 #로 치환 후 매칭) 값 불일치는 무시.
+                                                        // 단, 클립보드 숫자가 아예 없으면(t >= matches1.Count) 실패 처리.
+                                                        if (t >= matches1.Count)
+                                                        {
+                                                            isBreak = false;
+                                                            break;
+                                                        }
+                                                        // 고정 숫자 불일치 → 통과 (min/max 추출 안 함)
                                                     }
                                                 }
 
@@ -676,6 +688,9 @@ namespace Poe2TradeSearch
                         else if (rarity_id == "magic")
                         {
                             item_type = item_type.Split(new string[] { z == 1 ? " of " : " - " }, StringSplitOptions.None)[0].Trim();
+                            // 경로석 마법: "산산조각의 경로석 (15등급) 감전의" 처럼 접두+접미가 모두 있으면 " - " 없이 붙음.
+                            // "(숫자등급)" 뒤의 접미어만 제거해 "산산조각의 경로석 (15등급)"만 남긴다.
+                            item_type = Regex.Replace(item_type, @"(\(\d+등급\))\s+\S+.*$", "$1").Trim();
                         }
 
                         if (is_gem)
@@ -851,7 +866,7 @@ namespace Poe2TradeSearch
                         cbRarity.SelectedIndex = 0;
                     }
 
-                    bool Is_exchangeCurrency = (cate_ids[0] == "currency" && GetExchangeItem(z, item_type) != null) || is_supportgem;
+                    bool Is_exchangeCurrency = ((cate_ids[0] == "currency" || item_category == "지도 조각") && GetExchangeItem(z, item_type) != null) || is_supportgem;
                     // 보조 젬도 ninja 시세 대상 → exchange UI 표시/활성 (일반 젬은 제외)
                     bdExchange.Visibility = (!is_gem || is_supportgem) && (is_detail || Is_exchangeCurrency) ? Visibility.Visible : Visibility.Hidden;
                     bdExchange.IsEnabled = Is_exchangeCurrency;
@@ -1106,15 +1121,20 @@ namespace Poe2TradeSearch
                     JQ.Filters.Equipment.Filters.RuneSockets.Max = itemOptions.SocketMax;
                 }
 
-                // misc_filters: 품질/부패/레벨 체크시에만 포함
-                bool useMisc = itemOptions.ChkQuality == true || itemOptions.Corrupt != 0
+                // type_filters: 퀄리티 체크시 포함
+                if (itemOptions.ChkQuality == true)
+                {
+                    JQ.Filters.Type.Filters.Quality.Min = itemOptions.QualityMin;
+                    JQ.Filters.Type.Filters.Quality.Max = itemOptions.QualityMax;
+                }
+
+                // misc_filters: 부패/레벨 체크시에만 포함
+                bool useMisc = itemOptions.Corrupt != 0
                     || itemOptions.ChkUnidentify == true
                     || (Inherit != "map" && itemOptions.ChkLv == true);
                 if (useMisc)
                 {
                     JQ.Filters.Misc = new q_Misc_filters();
-                    JQ.Filters.Misc.Filters.Quality.Min = itemOptions.ChkQuality == true ? itemOptions.QualityMin : 99999;
-                    JQ.Filters.Misc.Filters.Quality.Max = itemOptions.ChkQuality == true ? itemOptions.QualityMax : 99999;
                     JQ.Filters.Misc.Filters.Ilvl.Min = itemOptions.ChkLv == true && Inherit != "gem" && Inherit != "map" ? itemOptions.LvMin : 99999;
                     JQ.Filters.Misc.Filters.Ilvl.Max = itemOptions.ChkLv == true && Inherit != "gem" && Inherit != "map" ? itemOptions.LvMax : 99999;
                     JQ.Filters.Misc.Filters.Gem_level.Min = itemOptions.ChkLv == true && Inherit == "gem" ? itemOptions.LvMin : 99999;
@@ -1935,6 +1955,7 @@ private ParserDictionary GetExchangeItem(string id)
                                 }
                                 else if (this.Visibility == Visibility.Visible)
                                 {
+                                    mIsEscHiding = true;
                                     Close();
                                 }
                             }

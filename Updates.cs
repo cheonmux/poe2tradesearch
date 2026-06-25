@@ -11,79 +11,105 @@ namespace Poe2TradeSearch
     public partial class WinMain : Window
     {
 
+        private string SendHTTPWithRetry(string entity, string urlString, int timeout = 5, int maxRetries = 3, int delayMs = 1000)
+        {
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                string result = SendHTTP(entity, urlString, timeout);
+                if (!string.IsNullOrEmpty(result))
+                {
+                    return result;
+                }
+
+                if (attempt < maxRetries)
+                {
+                    Thread.Sleep(delayMs);
+                }
+            }
+            return null;
+        }
+
+        private void ProcessFilterData(PoeData rootClass, bool isKR)
+        {
+            for (int i = 0; i < rootClass.Result.Length; i++)
+            {
+                if (
+                    rootClass.Result[i].Entries.Length > 0
+                    && RS.lFilterType.ContainsKey(rootClass.Result[i].Entries[0].Type)
+                )
+                {
+                    rootClass.Result[i].Label = RS.lFilterType[rootClass.Result[i].Entries[0].Type];
+                }
+
+                if (rootClass.Result[i].Entries[0].Type == "monster")
+                {
+                    for (int j = 0; j < rootClass.Result[i].Entries.Length; j++)
+                    {
+                        rootClass.Result[i].Entries[j].Text = rootClass.Result[i].Entries[j].Text.Replace(" (×#)", "");
+                    }
+                }
+            }
+
+            string local = isKR ? "(특정)" : " (Local)";
+
+            foreach (KeyValuePair<string, byte> itm in RS.lParticular)
+            {
+                for (int i = 0; i < rootClass.Result.Length; i++)
+                {
+                    int index = Array.FindIndex(rootClass.Result[i].Entries, x => x.Id.Substring(x.Id.IndexOf(".") + 1) == itm.Key);
+                    if (index > -1)
+                    {
+                        rootClass.Result[i].Entries[index].Text = rootClass.Result[i].Entries[index].Text.Replace(local, "");
+                        rootClass.Result[i].Entries[index].Part = itm.Value == 1 ? "weapon" : "armour";
+                    }
+                }
+            }
+
+            foreach (KeyValuePair<string, bool> itm in RS.lDisable)
+            {
+                for (int i = 0; i < rootClass.Result.Length; i++)
+                {
+                    int index = Array.FindIndex(rootClass.Result[i].Entries, x => x.Id.Substring(x.Id.IndexOf(".") + 1) == itm.Key);
+                    if (index > -1)
+                    {
+                        rootClass.Result[i].Entries[index].Text = "__DISABLE__";
+                        rootClass.Result[i].Entries[index].Part = "Disable";
+                    }
+                }
+            }
+        }
+
         private bool FilterDataUpdate(string path)
         {
             bool success = false;
-            string[] urls = { "https://poe.kakaogames.com/api/trade2/data/stats", "https://www.pathofexile.com/api/trade2/data/stats" };
+            string krUrl = "https://poe.kakaogames.com/api/trade2/data/stats";
+            string enUrl = "https://www.pathofexile.com/api/trade2/data/stats";
 
-            // 마우스 훜시 프로그램에 딜레이가 생겨 쓰레드 처리
             Thread thread = new Thread(() =>
             {
-                bool isKR = false;
-                foreach (string u in urls)
+                string krResult = SendHTTPWithRetry(null, krUrl, 5, 3, 1000);
+                if (string.IsNullOrEmpty(krResult)) return;
+
+                string enResult = SendHTTPWithRetry(null, enUrl, 5, 3, 1000);
+                if (string.IsNullOrEmpty(enResult)) return;
+
+                PoeData krData = Json.Deserialize<PoeData>(krResult);
+                ProcessFilterData(krData, true);
+                krData.Upddate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                using (StreamWriter writer = new StreamWriter(path + "FiltersKO.txt", false, Encoding.UTF8))
                 {
-                    isKR = !isKR;
-                    string sResult = SendHTTP(null, u, 5);
-                    if ((sResult ?? "") != "")
-                    {
-                        PoeData rootClass = Json.Deserialize<PoeData>(sResult);
-
-                        for (int i = 0; i < rootClass.Result.Length; i++)
-                        {
-                            if (
-                                rootClass.Result[i].Entries.Length > 0
-                                && RS.lFilterType.ContainsKey(rootClass.Result[i].Entries[0].Type)
-                            )
-                            {
-                                rootClass.Result[i].Label = RS.lFilterType[rootClass.Result[i].Entries[0].Type];
-                            }
-
-                            if (rootClass.Result[i].Entries[0].Type == "monster")
-                            {
-                                for (int j = 0; j < rootClass.Result[i].Entries.Length; j++)
-                                {
-                                    rootClass.Result[i].Entries[j].Text = rootClass.Result[i].Entries[j].Text.Replace(" (×#)", "");
-                                }
-                            }
-                        }
-
-                        string local = isKR ? "(특정)" : " (Local)";
-
-                        foreach (KeyValuePair<string, byte> itm in RS.lParticular)
-                        {
-                            for (int i = 0; i < rootClass.Result.Length; i++)
-                            {
-                                int index = Array.FindIndex(rootClass.Result[i].Entries, x => x.Id.Substring(x.Id.IndexOf(".") + 1) == itm.Key);
-                                if (index > -1)
-                                {
-                                    rootClass.Result[i].Entries[index].Text = rootClass.Result[i].Entries[index].Text.Replace(local, "");
-                                    rootClass.Result[i].Entries[index].Part = itm.Value == 1 ? "weapon" : "armour";
-                                }
-                            }
-                        }
-
-                        foreach (KeyValuePair<string, bool> itm in RS.lDisable)
-                        {
-                            for (int i = 0; i < rootClass.Result.Length; i++)
-                            {
-                                int index = Array.FindIndex(rootClass.Result[i].Entries, x => x.Id.Substring(x.Id.IndexOf(".") + 1) == itm.Key);
-                                if (index > -1)
-                                {
-                                    rootClass.Result[i].Entries[index].Text = "__DISABLE__";
-                                    rootClass.Result[i].Entries[index].Part = "Disable";
-                                }
-                            }
-                        }
-
-                        rootClass.Upddate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-                        using (StreamWriter writer = new StreamWriter(path + (isKR ? "FiltersKO.txt" : "FiltersEN.txt"), false, Encoding.UTF8))
-                        {
-                            writer.Write(Json.Serialize<PoeData>(rootClass));
-                        }
-
-                        success = true;
-                    }
+                    writer.Write(Json.Serialize<PoeData>(krData));
                 }
+
+                PoeData enData = Json.Deserialize<PoeData>(enResult);
+                ProcessFilterData(enData, false);
+                enData.Upddate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                using (StreamWriter writer = new StreamWriter(path + "FiltersEN.txt", false, Encoding.UTF8))
+                {
+                    writer.Write(Json.Serialize<PoeData>(enData));
+                }
+
+                success = true;
             });
 
             thread.Start();
@@ -95,29 +121,32 @@ namespace Poe2TradeSearch
         private bool ItemDataUpdate(string path)
         {
             bool success = false;
-            string[] urls = { "https://poe.kakaogames.com/api/trade2/data/items", "https://www.pathofexile.com/api/trade2/data/items" };
+            string krUrl = "https://poe.kakaogames.com/api/trade2/data/items";
+            string enUrl = "https://www.pathofexile.com/api/trade2/data/items";
 
-            // 마우스 훜시 프로그램에 딜레이가 생겨 쓰레드 처리
             Thread thread = new Thread(() =>
             {
-                bool isKR = false;
-                foreach (string u in urls)
+                string krResult = SendHTTPWithRetry(null, krUrl, 5, 3, 1000);
+                if (string.IsNullOrEmpty(krResult)) return;
+
+                string enResult = SendHTTPWithRetry(null, enUrl, 5, 3, 1000);
+                if (string.IsNullOrEmpty(enResult)) return;
+
+                PoeData krData = Json.Deserialize<PoeData>(krResult);
+                krData.Upddate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                using (StreamWriter writer = new StreamWriter(path + "ItemsKO.txt", false, Encoding.UTF8))
                 {
-                    isKR = !isKR;
-                    string sResult = SendHTTP(null, u, 5);
-                    if ((sResult ?? "") != "")
-                    {
-                        PoeData rootClass = Json.Deserialize<PoeData>(sResult);
-
-                        rootClass.Upddate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-                        using (StreamWriter writer = new StreamWriter(path + (isKR ? "ItemsKO.txt" : "ItemsEN.txt"), false, Encoding.UTF8))
-                        {
-                            writer.Write(Json.Serialize<PoeData>(rootClass));
-                        }
-
-                        success = true;
-                    }
+                    writer.Write(Json.Serialize<PoeData>(krData));
                 }
+
+                PoeData enData = Json.Deserialize<PoeData>(enResult);
+                enData.Upddate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                using (StreamWriter writer = new StreamWriter(path + "ItemsEN.txt", false, Encoding.UTF8))
+                {
+                    writer.Write(Json.Serialize<PoeData>(enData));
+                }
+
+                success = true;
             });
 
             thread.Start();
@@ -129,29 +158,32 @@ namespace Poe2TradeSearch
         private bool StaticDataUpdate(string path)
         {
             bool success = false;
-            string[] urls = { "https://poe.kakaogames.com/api/trade2/data/static", "https://www.pathofexile.com/api/trade2/data/static" };
+            string krUrl = "https://poe.kakaogames.com/api/trade2/data/static";
+            string enUrl = "https://www.pathofexile.com/api/trade2/data/static";
 
-            // 마우스 훜시 프로그램에 딜레이가 생겨 쓰레드 처리
             Thread thread = new Thread(() =>
             {
-                bool isKR = false;
-                foreach (string u in urls)
+                string krResult = SendHTTPWithRetry(null, krUrl, 5, 3, 1000);
+                if (string.IsNullOrEmpty(krResult)) return;
+
+                string enResult = SendHTTPWithRetry(null, enUrl, 5, 3, 1000);
+                if (string.IsNullOrEmpty(enResult)) return;
+
+                PoeData krData = Json.Deserialize<PoeData>(krResult);
+                krData.Upddate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                using (StreamWriter writer = new StreamWriter(path + "StaticKO.txt", false, Encoding.UTF8))
                 {
-                    isKR = !isKR;
-                    string sResult = SendHTTP(null, u, 5);
-                    if ((sResult ?? "") != "")
-                    {
-                        PoeData rootClass = Json.Deserialize<PoeData>(sResult);
-
-                        rootClass.Upddate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-                        using (StreamWriter writer = new StreamWriter(path + (isKR ? "StaticKO.txt" : "StaticEN.txt"), false, Encoding.UTF8))
-                        {
-                            writer.Write(Json.Serialize<PoeData>(rootClass));
-                        }
-
-                        success = true;
-                    }
+                    writer.Write(Json.Serialize<PoeData>(krData));
                 }
+
+                PoeData enData = Json.Deserialize<PoeData>(enResult);
+                enData.Upddate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                using (StreamWriter writer = new StreamWriter(path + "StaticEN.txt", false, Encoding.UTF8))
+                {
+                    writer.Write(Json.Serialize<PoeData>(enData));
+                }
+
+                success = true;
             });
 
             thread.Start();

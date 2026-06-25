@@ -19,3 +19,7 @@ PoeTradeSearch-master.zip
 # 에이전트 도구 캐시
 .codegraph/
 .claude/
+
+# Superpowers
+.superpowers/
+superpowers/

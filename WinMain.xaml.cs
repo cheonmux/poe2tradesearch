@@ -26,6 +26,7 @@ namespace Poe2TradeSearch
         public static DateTime mMouseHookCallbackTime;
         private bool mHotkeyProcBlock = false;
         private bool mClipboardBlock = false;
+        private bool mIsEscHiding = false;
         private volatile bool mLockUpdatePrice = false;
         private HwndSource mHwndSource = null;
 
@@ -140,9 +141,9 @@ namespace Poe2TradeSearch
             // 새 버전 확인 (백그라운드, 실패는 조용히 무시)
             CheckUpdate(false);
 
-            // 12시간마다 백그라운드 업데이트 자동 감지
+            // 1시간마다 백그라운드 업데이트 자동 감지
             DispatcherTimer updateCheckTimer = new DispatcherTimer();
-            updateCheckTimer.Interval = TimeSpan.FromHours(12);
+            updateCheckTimer.Interval = TimeSpan.FromHours(1);
             updateCheckTimer.Tick += (s, ev) => CheckUpdate(false);
             updateCheckTimer.Start();
 
@@ -758,12 +759,30 @@ namespace Poe2TradeSearch
 
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (closeKeyCode > 0 && KeyInterop.VirtualKeyFromKey(e.Key) == closeKeyCode)
+            int virtualKey = KeyInterop.VirtualKeyFromKey(e.Key);
+            if ((closeKeyCode > 0 && virtualKey == closeKeyCode) || (closeKeyCode <= 0 && e.Key == Key.Escape))
+            {
+                mIsEscHiding = true;
                 Close();
+                e.Handled = true;
+            }
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            if (mIsEscHiding)
+            {
+                mIsEscHiding = false;
+                e.Cancel = true;
+                SaveWindowPosition(); // 숨김 시에도 위치 저장
+                Keyboard.ClearFocus();
+                this.Visibility = Visibility.Hidden;
+                // 자동 시세 검색으로 바뀐 텍스트 닫을때 초기화
+                tkPriceCount.Text = "";
+                tkPriceInfo.Text = (string)tkPriceInfo.Tag;
+                return;
+            }
+
             // 오른쪽 위 X 버튼: 종료 확인 후 완전 종료. (최소화 버튼은 Hide()만 함)
             MessageBoxResult result = MessageBox.Show(this, "프로그램을 종료하시겠습니까?", "종료 확인",
                 MessageBoxButton.YesNo, MessageBoxImage.Question);
